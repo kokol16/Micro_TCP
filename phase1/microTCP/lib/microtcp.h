@@ -84,7 +84,6 @@ typedef struct
   uint64_t bytes_lost;
 } microtcp_sock_t;
 
-
 /**
  * microTCP header structure
  * NOTE: DO NOT CHANGE!
@@ -101,7 +100,6 @@ typedef struct
   uint32_t future_use2;         /**< 32-bits for future use */
   uint32_t checksum;            /**< CRC-32 checksum, see crc32() in utils folder */
 } microtcp_header_t;
-
 
 microtcp_sock_t
 microtcp_socket (int domain, int type, int protocol);
@@ -124,7 +122,7 @@ microtcp_connect (microtcp_sock_t *socket, const struct sockaddr *address,
  * 0 on success or -1 on failure
  */
 int
-microtcp_accept (microtcp_sock_t *socket, struct sockaddr *address,
+microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address,
                  socklen_t address_len);
 
 int
