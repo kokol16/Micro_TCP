@@ -1,5 +1,5 @@
 /*
-*  Manos Chatzakis Giorgos Kokolakis
+ *  Manos Chatzakis(csd4238)  George Kokolakis (csd4254)
  * microtcp, a lightweight implementation of TCP for teaching,
  * and academic purposes.
  *
