@@ -20,7 +20,7 @@
 
 
 /**
- * @file microtcp.c
+ * @file microtcp.c 
  * @author Manos Chatzakis (chatzakis@ics.forth.gr)
  * @author George Kokolakis (kokol@ics.forth.gr)
  * @brief microTCP implementation for the undergraduate course cs335a
@@ -38,7 +38,7 @@
 #include "common.h"
 #include "../utils/crc32.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 /**
  * @brief Create a new socket
@@ -53,6 +53,8 @@ microtcp_socket(int domain, int type, int protocol)
 {
   microtcp_sock_t new_socket;
   memset(&new_socket, 0, sizeof(new_socket));
+  protocol = 0;
+  type = SOCK_DGRAM;
   if ((new_socket.sd = socket(domain, type, protocol)) < 0)
   {
     perror("Socket Failed.");
@@ -352,23 +354,34 @@ microtcp_server_shutdown(microtcp_sock_t *socket, int how)
   packet_1.header.ack_number = socket->seq_number + 1;
   packet_1.header.control = set_control_bits(1, 0, 0, 0);
   header_ptr = &packet_1.header;
-  printf("Server header sent:\n");
-  print_header(packet_1.header);
+  if(DEBUG)
+  {
+    printf("Header 2:\n");
+    print_header(packet_1.header);
+  }
   microtcp_raw_send(socket, header_ptr, sizeof(packet_1.header), 0);
   
   memset(&packet_2, 0, sizeof(packet_2));
   packet_2.header.seq_number = get_random_int(101, 150);
   packet_2.header.control = set_control_bits(1, 0, 0, 1);
   header_ptr = &packet_2.header;
-  printf("Server header sent:\n");
-  print_header(packet_2.header);
+
+  if(DEBUG)
+  {
+    printf("Header 3:\n");
+    print_header(packet_2.header);
+  }
   microtcp_raw_send(socket, header_ptr, sizeof(packet_2.header), 0);
 
   header_ptr = &packet_3.header;
   microtcp_raw_recv(socket, header_ptr, sizeof(packet_3.header), MSG_WAITALL);
   //headervalidation
-  printf("Client header recieved:\n");
-  print_header(packet_3.header);
+  if(DEBUG)
+  {
+    printf("Header 4:\n");
+    print_header(packet_3.header);
+  
+  }
   
   socket->ack_number = packet_2.header.ack_number;
   socket->seq_number = packet_2.header.seq_number;

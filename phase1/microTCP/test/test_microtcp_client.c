@@ -42,14 +42,22 @@
 #include <string.h>
 #include <stdio.h>
 
+#define MAXSIZE 100
+#define PORT 8080
+
 int
 main(int argc, char **argv)
 {
-    int len;
+    int len,n;
+    char * str1 = "Client 1!";
+    char * str2 = "Client 2!";
+    char * str3 = "Client 3!";
+    char buffer[MAXSIZE];
     microtcp_sock_t socket;
     struct sockaddr_in servaddr;
 
-    // Creating socket file descriptor
+    printf("Client running...\n");
+
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
     if(socket.state == INVALID)
     {
@@ -70,25 +78,27 @@ main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    printf("Handshake done!\n");
+    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    buffer[n] = '\0';
+    printf("First message recieved: %s\n",buffer);    
+
+    n = microtcp_send(&socket,(const char *)str1, 10,0);
+    printf("Send message to server of %d bytes.\n",n);
+
+    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    buffer[n] = '\0';
+    printf("Second message recieved: %s\n",buffer);
     
-    /*int n;
-    char str[100];
-    n = microtcp_recv(&socket,(void *)str,100,0);
-    str[n] = '\0';
-    printf("String recieved from server: %s\n",str);
-    */
-   
-   printf("Shutdown begins\n");
+    n = microtcp_send(&socket,(const char *)str2, 10,0);
+    printf("Send message to server of %d bytes.\n",n);
 
-    if((microtcp_shutdown(&socket,0))<0){
-        printf("Could not close connection.\n");
-        return -1;
-    }
+    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    buffer[n] = '\0';
+    printf("Third message recieved: %s\n",buffer);
+    
+    n = microtcp_send(&socket,(const char *)str3, 10,0);
+    printf("Send message to server of %d bytes.\n",n);
 
-    if(socket.state == CLOSED){
-        printf("Succeed!\n");
-    }
 
     return 0;
 }

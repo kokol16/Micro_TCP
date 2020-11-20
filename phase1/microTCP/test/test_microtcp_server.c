@@ -43,18 +43,24 @@
 #include <stdio.h>
 
 #define MAXSIZE 1000
+#define PORT 8080
 
 int
 main(int argc, char **argv)
 {
     int len, n;
+    
+    char * str1 = "Server 1";
+    char * str2 = "Server 2";
+    char * str3 = "Server 3";
+
     char buffer[MAXSIZE];
-    microtcp_sock_t micro_socket;
+    microtcp_sock_t socket;
     struct sockaddr_in servaddr;
 
-    micro_socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
+    socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
 
-    if(micro_socket.state == INVALID)
+    if(socket.state == INVALID)
     {
         printf("Socket error");
         exit(EXIT_FAILURE);
@@ -64,30 +70,40 @@ main(int argc, char **argv)
 
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = INADDR_ANY;
-    servaddr.sin_port = htons(8080);
+    servaddr.sin_port = htons(PORT);
 
-    if((microtcp_bind(&micro_socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0){
+    if((microtcp_bind(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0){
         printf("bind failed");
         exit(EXIT_FAILURE); 
     }
 
-    if((microtcp_accept(&micro_socket,(struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
+    if((microtcp_accept(&socket,(struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
     {
         printf("Could not accept connection\n");
         return -1;
     }
 
-    printf("Handshake done!\n");
+    n = microtcp_send(&socket,(const char *)str1, 9,0);
+    printf("Send message to client of %d bytes.\n",n);
 
-    /*char str[] = "Message from server to client!";
-    microtcp_send(&micro_socket,(const char *)str, 31,0);
-    */
-
-    microtcp_recv(&micro_socket,( char *)buffer, MAXSIZE,0);
+    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    buffer[n] = '\0';
+    printf("First message recieved: %s\n",buffer);
     
-    if(micro_socket.state == CLOSED){
-        printf("Succeed!\n");
-    }
+    n = microtcp_send(&socket,(const char *)str2, 10,0);
+    printf("Send message to client of %d bytes.\n",n);
 
+    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    buffer[n] = '\0';
+    printf("Second message recieved: %s\n",buffer);
+    
+    n = microtcp_send(&socket,(const char *)str3, 10,0);
+    printf("Send message to client of %d bytes.\n",n);
+
+    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    buffer[n] = '\0';
+    printf("Third message recieved: %s\n",buffer);
+    
+    
     return 0;
 }
