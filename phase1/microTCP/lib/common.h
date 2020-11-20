@@ -81,13 +81,19 @@ void print_header(microtcp_header_t header)
     printf("    FIN: %d\n",get_bit(control,fin));    
 }
 
+/**
+ * @brief 
+ * 
+ * @param header 
+ * @param socket 
+ * @param length 
+ */
 void initiliaze_default_header(microtcp_header_t *header,microtcp_sock_t socket,int length){ 
   header->ack_number = socket.ack_number;
   header->seq_number = socket.seq_number;
   header->data_len   = length;
   header->control    = set_control_bits(1,0,0,0);
 }
-
 
 
 

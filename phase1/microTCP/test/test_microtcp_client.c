@@ -70,11 +70,25 @@ main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    int n;
+    printf("Handshake done!\n");
+    
+    /*int n;
     char str[100];
     n = microtcp_recv(&socket,(void *)str,100,0);
     str[n] = '\0';
     printf("String recieved from server: %s\n",str);
+    */
+   
+   printf("Shutdown begins\n");
+
+    if((microtcp_shutdown(&socket,0))<0){
+        printf("Could not close connection.\n");
+        return -1;
+    }
+
+    if(socket.state == CLOSED){
+        printf("Succeed!\n");
+    }
 
     return 0;
 }

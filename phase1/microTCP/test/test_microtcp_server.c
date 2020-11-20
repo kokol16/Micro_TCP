@@ -42,10 +42,13 @@
 #include <string.h>
 #include <stdio.h>
 
+#define MAXSIZE 1000
+
 int
 main(int argc, char **argv)
 {
     int len, n;
+    char buffer[MAXSIZE];
     microtcp_sock_t micro_socket;
     struct sockaddr_in servaddr;
 
@@ -71,10 +74,20 @@ main(int argc, char **argv)
     if((microtcp_accept(&micro_socket,(struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
     {
         printf("Could not accept connection\n");
+        return -1;
     }
 
-    char str[] = "Message from server to client!";
+    printf("Handshake done!\n");
+
+    /*char str[] = "Message from server to client!";
     microtcp_send(&micro_socket,(const char *)str, 31,0);
+    */
+
+    microtcp_recv(&micro_socket,( char *)buffer, MAXSIZE,0);
+    
+    if(micro_socket.state == CLOSED){
+        printf("Succeed!\n");
+    }
 
     return 0;
 }
