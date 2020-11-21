@@ -18,7 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 /**
  * @file microtcp.c 
  * @author Manos Chatzakis (chatzakis@ics.forth.gr)
@@ -40,14 +39,6 @@
 
 #define DEBUG 0
 
-/**
- * @brief Create a new socket
- * STATUS: READY
- * @param domain 
- * @param type 
- * @param protocol 
- * @return microtcp_sock_t 
- */
 microtcp_sock_t
 microtcp_socket(int domain, int type, int protocol)
 {
@@ -65,15 +56,8 @@ microtcp_socket(int domain, int type, int protocol)
   return new_socket;
 }
 
-/**
- * @brief 
- * STATUS: READY
- * @param socket 
- * @param address 
- * @param address_len 
- * @return int 
- */
-int microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address,
+int
+microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address,
                   socklen_t address_len)
 {
   /*Errno and error handling is done inside bind*/
@@ -82,15 +66,8 @@ int microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address,
   return ret_val;
 }
 
-/**
- * @brief 
- * 
- * @param socket 
- * @param address 
- * @param address_len 
- * @return int 
- */
-int microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address,
+int
+microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address,
                      socklen_t address_len)
 {
   microtcp_header_t *header_ptr;
@@ -102,7 +79,7 @@ int microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address,
   /*Sending first packet with appropriate fields*/
   memset(&header_1, 0, sizeof(header_1));
   header_1.seq_number = get_random_int(1, 49);
-  header_1.control    = set_control_bits(0, 0, 1, 0);
+  header_1.control = set_control_bits(0, 0, 1, 0);
   header_ptr = &header_1;
   microtcp_raw_send(socket, header_ptr, sizeof(header_1), 0);
   if (DEBUG)
@@ -141,15 +118,8 @@ int microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address,
   return 0; //may return 1 on success, 0 on failure?
 }
 
-/**
- * @brief 
- * 
- * @param socket 
- * @param address 
- * @param address_len 
- * @return int 
- */
-int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address,
+int
+microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address,
                     socklen_t address_len)
 {
   microtcp_header_t *header_ptr;
@@ -167,7 +137,7 @@ int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address,
     print_header(header_1);
   }
   /*Sending the second packet*/
-  memset(&header_2, 0, sizeof(&header_2));
+  memset(&header_2, 0, sizeof(header_2));
   header_2.ack_number = header_1.seq_number + 1;
   header_2.seq_number = get_random_int(50, 100);
   header_2.control = set_control_bits(1, 0, 1, 0);
@@ -197,51 +167,109 @@ int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address,
   return 0;
 }
 
-/**
- * @brief 
- * 
- * @param socket 
- * @param how 
- * @return int 
- */
-int microtcp_shutdown(microtcp_sock_t *socket, int how)
+int
+microtcp_shutdown(microtcp_sock_t *socket, int how)
 {
   microtcp_header_t *header_ptr;
-  microtcp_packet_t packet_1, packet_2, packet_3, packet_4;
+  microtcp_header_t header_1, header_2, header_3, header_4;
 
-  memset(&packet_1, 0, sizeof(packet_1));
-  packet_1.header.ack_number = socket->ack_number;
-  packet_1.header.seq_number = socket->seq_number;
-  packet_1.header.control = set_control_bits(1, 0, 0, 1);
-  header_ptr = &packet_1.header;
-  printf("Client header sent:\n");
-  print_header(packet_1.header);
-  microtcp_raw_send(socket, header_ptr, sizeof(packet_1.header), 0);
+  switch (socket->state)
+  {
+  case CLOSING_BY_PEER://client
+    memset(&header_1, 0, sizeof(header_1));
+    header_1.ack_number = socket->ack_number;
+    header_1.seq_number = socket->seq_number;
+    header_1.control = set_control_bits(1, 0, 0, 1); //ACK FIN
+    header_ptr = &header_1;
+    if(DEBUG){
+      printf("Header 1:\n");
+      print_header(header_1);
+    }
+    microtcp_raw_send(socket, header_ptr, sizeof(header_1), 0);
 
-  header_ptr = &packet_2.header;
-  microtcp_raw_recv(socket, header_ptr, sizeof(packet_2.header), MSG_WAITALL);
-  printf("Server header recieved:\n");
-  print_header(packet_2.header);
+    header_ptr = &header_2;
+    microtcp_raw_recv(socket, header_ptr, sizeof(header_2), MSG_WAITALL);
+    if(DEBUG){
+      printf("Header 2:\n");
+      print_header(header_2);
+    }  
+
+    header_ptr = &header_3;
+    microtcp_raw_recv(socket, header_ptr, sizeof(header_3), MSG_WAITALL);
+    if(DEBUG){
+      printf("Header 3:\n");
+      print_header(header_3);
+    }
+
+    memset(&header_4, 0, sizeof(header_4));
+    header_4.ack_number = header_3.seq_number + 1;
+    header_4.seq_number = header_3.ack_number;
+    header_4.control = set_control_bits(1, 0, 0, 0);
+    header_ptr = &header_4;
+    if(DEBUG)
+    {
+      printf("Client header sent:\n");
+      print_header(header_4);
+    }
+    microtcp_raw_send(socket, header_ptr, sizeof(header_4), 0);
+
+    socket->seq_number = header_4.seq_number;
+    socket->ack_number = header_4.ack_number;
+    socket->state = CLOSED;
+    close(socket->sd); //?
+    break;
+  case CLOSING_BY_HOST://server
+    header_ptr = &header_1;
+    microtcp_raw_recv(socket, header_ptr, sizeof(header_1), MSG_WAITALL);
+    if (DEBUG)
+    {
+      printf("Header 1:\n");
+      print_header(header_1);
+    }
+
+    memset(&header_2, 0, sizeof(header_2));
+    header_2.seq_number = 0;//get_random_int(101, 150);
+    header_2.ack_number = header_1.seq_number + 1;
+    header_2.control = set_control_bits(1, 0, 0, 0);
+    header_ptr = &header_2;
+    if (DEBUG)
+    {
+      printf("Header 2:\n");
+      print_header(header_2);
+    }
+    microtcp_raw_send(socket, header_ptr, sizeof(header_2), 0);
+
+    memset(&header_3, 0, sizeof(header_3));
+    header_3.seq_number = get_random_int(101, 150);
+    header_3.ack_number = 0; //tmp
+    header_3.control = set_control_bits(1, 0, 0, 1);
+    header_ptr = &header_3;
+    if (DEBUG)
+    {
+      printf("Header 3:\n");
+      print_header(header_3);
+    }
+    microtcp_raw_send(socket, header_ptr, sizeof(header_3), 0);
     
-  header_ptr = &packet_3.header;
-  microtcp_raw_recv(socket, header_ptr, sizeof(packet_3.header), MSG_WAITALL);
-  printf("Server header recieved:\n");
-  print_header(packet_3.header);
+    header_ptr = &header_4;
+    microtcp_raw_recv(socket, header_ptr, sizeof(header_4), MSG_WAITALL);
+    //headervalidation
+    if (DEBUG)
+    {
+      printf("Header 4:\n");
+      print_header(header_4);
+    }
 
-  memset(&packet_4, 0, sizeof(packet_4));
-  packet_4.header.ack_number = packet_3.header.seq_number + 1;
-  packet_4.header.seq_number = packet_2.header.ack_number;  
-  packet_4.header.control = set_control_bits(1, 0, 0, 0);
-  header_ptr = &packet_4.header;
-  printf("Client header sent:\n");
-  print_header(packet_4.header);
-  microtcp_raw_send(socket, header_ptr, sizeof(packet_4.header), 0);
+    socket->ack_number = header_4.ack_number;//??
+    socket->seq_number = header_4.seq_number;//??
+    socket->state = CLOSED;
+    close(socket->sd);
+    break;
+  default:
+    printf("Error");
+    return -1;
+  }
 
-  socket->seq_number = packet_4.header.seq_number;
-  socket->ack_number = packet_4.header.ack_number;
-  socket->state = CLOSED;
-  close(socket->sd); //?
-  
   return 0;
 }
 
@@ -250,17 +278,17 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length,
               int flags)
 {
   microtcp_header_t header;
-  void * packet = malloc((length + sizeof(header))*sizeof(char));
+  void *packet = malloc((length + sizeof(header)) * sizeof(char));
   memset(&header, 0, sizeof(header));
   microtcp_header_t *header_ptr = &header;
-  initiliaze_default_header(&header,*socket,length);
-  
-  memcpy((packet+sizeof(header)),buffer,length);
-  memcpy(packet,header_ptr,sizeof(header));
-  
+  initiliaze_default_header(&header, *socket, length);
+
+  memcpy((packet + sizeof(header)), buffer, length);
+  memcpy(packet, header_ptr, sizeof(header));
+
   ssize_t bytes_sent = sendto(socket->sd, packet, length + sizeof(header), flags, (socket->address), socket->address_len);
 
-  if(bytes_sent == length)
+  if (bytes_sent == length)
   {
     socket->seq_number = socket->seq_number + length;
     socket->ack_number = header.ack_number;
@@ -269,124 +297,33 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length,
   return bytes_sent - sizeof(header);
 }
 
-/**
- * @brief 
- * 
- * @param socket 
- * @param buffer 
- * @param length 
- * @param flags 
- * @return ssize_t 
- */
 ssize_t
 microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
 {
-  microtcp_header_t header;
+  microtcp_header_t header,ack_header;
   memset(&header, 0, sizeof(header));
   microtcp_header_t *header_ptr = &header;
-  
-  void * tmp = malloc((length + sizeof(header))*sizeof(char)); //free
-  
+
+  void *tmp = malloc((length + sizeof(header)) * sizeof(char)); //free
+
   ssize_t bytes_recieved = recvfrom(socket->sd, tmp, length + sizeof(header), flags, (socket->address), &socket->address_len);
-  
-  memcpy(&header,tmp,sizeof(header));
-  memcpy(buffer,tmp + (sizeof(header)*sizeof(char)),length);
 
-  if(length == bytes_recieved)
-  {
-    socket->seq_number = header.seq_number;
-    socket->ack_number = header.ack_number;
-    socket->state = INVALID;
-    printf("Error on bytes recieved\n");
-    return 1;
-  }
+  memcpy(&header, tmp, sizeof(header));
+  memcpy(buffer, tmp + (sizeof(header) * sizeof(char)), length);
 
-  if (get_bit(header.control, 15) && get_bit(header.control,12))
-  {
-    printf("Client header recieved:\n");
-    print_header(header);
-    microtcp_server_shutdown(socket, 0);
-  }
-
+  //free(tmp);
   return bytes_recieved - sizeof(header);
 }
 
-/**
- * @brief 
- * 
- * @param socket 
- * @param buffer 
- * @param length 
- * @param flags 
- * @return ssize_t 
- */
 ssize_t
 microtcp_raw_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
 {
   return recvfrom(socket->sd, buffer, length, flags, (socket->address), &socket->address_len);
 }
 
-/**
- * @brief 
- * 
- * @param socket 
- * @param buffer 
- * @param length 
- * @param flags 
- * @return ssize_t 
- */
 ssize_t
 microtcp_raw_send(microtcp_sock_t *socket, const void *buffer, size_t length,
                   int flags)
 {
   return sendto(socket->sd, buffer, length, flags, (socket->address), socket->address_len);
-}
-
-int
-microtcp_server_shutdown(microtcp_sock_t *socket, int how)
-{
-  microtcp_header_t *header_ptr;
-  microtcp_packet_t packet_1, packet_2, packet_3;
-
-  socket->state = CLOSING_BY_PEER;
-
-  memset(&packet_1, 0, sizeof(packet_1));
-  packet_1.header.ack_number = socket->seq_number + 1;
-  packet_1.header.control = set_control_bits(1, 0, 0, 0);
-  header_ptr = &packet_1.header;
-  if(DEBUG)
-  {
-    printf("Header 2:\n");
-    print_header(packet_1.header);
-  }
-  microtcp_raw_send(socket, header_ptr, sizeof(packet_1.header), 0);
-  
-  memset(&packet_2, 0, sizeof(packet_2));
-  packet_2.header.seq_number = get_random_int(101, 150);
-  packet_2.header.control = set_control_bits(1, 0, 0, 1);
-  header_ptr = &packet_2.header;
-
-  if(DEBUG)
-  {
-    printf("Header 3:\n");
-    print_header(packet_2.header);
-  }
-  microtcp_raw_send(socket, header_ptr, sizeof(packet_2.header), 0);
-
-  header_ptr = &packet_3.header;
-  microtcp_raw_recv(socket, header_ptr, sizeof(packet_3.header), MSG_WAITALL);
-  //headervalidation
-  if(DEBUG)
-  {
-    printf("Header 4:\n");
-    print_header(packet_3.header);
-  
-  }
-  
-  socket->ack_number = packet_2.header.ack_number;
-  socket->seq_number = packet_2.header.seq_number;
-
-  close(socket->sd);
-  socket->state = CLOSED;
-  return 0;
 }

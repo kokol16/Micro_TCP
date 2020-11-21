@@ -34,7 +34,6 @@
  * @copyright Copyright (c) 2020
  * 
  */
-
 #include "../lib/microtcp.h"
 
 #include <unistd.h>
@@ -55,11 +54,13 @@ main(int argc, char **argv)
     char * str3 = "Server 3";
 
     char buffer[MAXSIZE];
+
     microtcp_sock_t socket;
     struct sockaddr_in servaddr;
 
-    socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
+    printf("Server running...\n");
 
+    socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
     if(socket.state == INVALID)
     {
         printf("Socket error");
@@ -83,27 +84,34 @@ main(int argc, char **argv)
         return -1;
     }
 
-    n = microtcp_send(&socket,(const char *)str1, 9,0);
+    /*n = microtcp_send(&socket,(const char *)str1, 9,0);
     printf("Send message to client of %d bytes.\n",n);
-
     n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
     buffer[n] = '\0';
     printf("First message recieved: %s\n",buffer);
-    
-    n = microtcp_send(&socket,(const char *)str2, 10,0);
+    n = microtcp_send(&socket,(const char *)str2, 9,0);
     printf("Send message to client of %d bytes.\n",n);
-
     n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
     buffer[n] = '\0';
     printf("Second message recieved: %s\n",buffer);
-    
-    n = microtcp_send(&socket,(const char *)str3, 10,0);
-    printf("Send message to client of %d bytes.\n",n);
-
+    n = microtcp_send(&socket,(const char *)str3, 9,0);
+    printf("Send message to client of %d bytes.\n",n)
     n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
     buffer[n] = '\0';
-    printf("Third message recieved: %s\n",buffer);
+    printf("Third message recieved: %s\n",buffer);*/
+
+    while((microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL))>0){
+        printf("Message received: %s",buffer);
+    }
     
-    
+    if(microtcp_shutdown(&socket,0)<0){
+        printf("Error shuting down connection\n");
+        return -1;
+    }
+
+    if(socket.state == CLOSED){
+        printf("Shutdown succeed\n");
+    }
+
     return 0;
 }

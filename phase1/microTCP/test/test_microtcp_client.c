@@ -69,7 +69,7 @@ main(int argc, char **argv)
 
     // Filling server information
     servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(8080);
+    servaddr.sin_port = htons(PORT);
     servaddr.sin_addr.s_addr = INADDR_ANY;
 
     if((microtcp_connect(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
@@ -78,26 +78,36 @@ main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    /*n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
     buffer[n] = '\0';
-    printf("First message recieved: %s\n",buffer);    
+    printf("First message recieved: %s\n",buffer);*/    
 
     n = microtcp_send(&socket,(const char *)str1, 10,0);
     printf("Send message to server of %d bytes.\n",n);
 
-    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    /*n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
     buffer[n] = '\0';
-    printf("Second message recieved: %s\n",buffer);
+    printf("Second message recieved: %s\n",buffer);*/
     
     n = microtcp_send(&socket,(const char *)str2, 10,0);
     printf("Send message to server of %d bytes.\n",n);
 
-    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
+    /*n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
     buffer[n] = '\0';
-    printf("Third message recieved: %s\n",buffer);
+    printf("Third message recieved: %s\n",buffer);*/
     
     n = microtcp_send(&socket,(const char *)str3, 10,0);
     printf("Send message to server of %d bytes.\n",n);
+
+    socket.state = CLOSING_BY_PEER;
+    if(microtcp_shutdown(&socket,0)<0){
+        printf("Error shuting down connection\n");
+        return -1;
+    }
+
+    if(socket.state == CLOSED){
+        printf("Shutdown succeed\n");
+    }
 
     return 0;
 }

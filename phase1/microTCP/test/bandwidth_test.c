@@ -199,9 +199,8 @@ server_microtcp (uint16_t listen_port, const char *file)
 
   memset (&sin, 0, sizeof(struct sockaddr_in));
   sin.sin_family = AF_INET;
-  sin.sin_port = htons (listen_port);
-  /* Bind to all available network interfaces */
   sin.sin_addr.s_addr = INADDR_ANY;
+  sin.sin_port = htons(listen_port);
 
   if (microtcp_bind(&sock, (struct sockaddr *) &sin, sizeof(struct sockaddr_in)) == -1) {
     perror ("TCP bind");
@@ -209,59 +208,36 @@ server_microtcp (uint16_t listen_port, const char *file)
     fclose (fp);
     return -EXIT_FAILURE;
   }
-/*
-  if (listen (sock, 1000) == -1) {
-    perror ("TCP listen");
-    free (buffer);
-    fclose (fp);
-    return -EXIT_FAILURE;
-  }
-*/
-  /* Accept a connection from the client */
-  client_addr_len = sizeof(struct sockaddr);
-  accepted = microtcp_accept(&sock, &client_addr, client_addr_len);
+
+  accepted = microtcp_accept(&sock,(struct sockaddr *) &sin, sizeof(sin));
   if (accepted < 0) {
     perror ("TCP accept");
     free (buffer);
     fclose (fp);
     return -EXIT_FAILURE;
   }
-
-  printf("after handshake");
-
-  /*
-   * Start processing the received data.
-   *
-   * Also start measuring time. Not the most accurate measurement, but
-   * it is a good starting point.
-   *
-   * At hy-435 we deal with bandwidth measurements software in a more
-   * right and careful way :-)
-   */
   
   clock_gettime (CLOCK_MONOTONIC_RAW, &start_time);
-  while ((received = microtcp_recv(&sock, buffer, CHUNK_SIZE, 0)) > 0) {
+  //while ((
+    received = microtcp_recv(&sock, buffer, CHUNK_SIZE, MSG_WAITALL);//) > 0) {
+    printf("Bytes recieved = %d of data %s\n",received,(char *)buffer);
     written = fwrite (buffer, sizeof(uint8_t), received, fp);
     total_bytes += received;
     if (written * sizeof(uint8_t) != received) {
-      printf ("Failed to write to the file the"
-              " amount of data received from the network.\n");
-      //microtcp_shutdown (accepted, SHUT_RDWR);
-      microtcp_shutdown (&sock, SHUT_RDWR);
-      //close (accepted);
-      close (sock.sd);
+      printf ("Failed to write to the file the amount of data received from the network.\n");
+      //sock.state = CLOSING_BY_HOST;
+      //microtcp_shutdown (&sock, SHUT_RDWR);
       free (buffer);
       fclose (fp);
       return -EXIT_FAILURE;
     }
-  }
+ // }
   clock_gettime (CLOCK_MONOTONIC_RAW, &end_time);
   print_statistics (total_bytes, start_time, end_time);
-
-  //microtcp_shutdown (accepted, SHUT_RDWR);
-  //microtcp_shutdown (&sock, SHUT_RDWR);
-  //close (accepted);
-  close (sock.sd);
+  printf("haha\n");
+  sock.state = CLOSING_BY_HOST;
+  microtcp_shutdown (&sock, SHUT_RDWR);
+  printf("ax...\n");
   fclose (fp);
   free (buffer);
 
@@ -308,7 +284,7 @@ client_tcp (const char *serverip, uint16_t server_port, const char *file)
   /*Port that server listens at */
   sin.sin_port = htons (server_port);
   /* The server's IP*/
-  sin.sin_addr.s_addr = inet_addr (serverip);
+  sin.sin_addr.s_addr =INADDR_ANY; //inet_addr (serverip);
 
   if (connect (sock, (struct sockaddr *) &sin, sizeof(struct sockaddr_in))
       == -1) {
@@ -387,36 +363,31 @@ client_microtcp (const char *serverip, uint16_t server_port, const char *file)
   struct sockaddr_in sin;
   memset (&sin, 0, sizeof(struct sockaddr_in));
   sin.sin_family = AF_INET;
-  /*Port that server listens at */
   sin.sin_port = htons (server_port);
-  /* The server's IP*/
-  sin.sin_addr.s_addr = inet_addr (serverip);
+  sin.sin_addr.s_addr = INADDR_ANY;//inet_addr (serverip);
 
-  if (microtcp_connect (&sock, (struct sockaddr *) &sin, sizeof(struct sockaddr_in))
-      == -1) {
+  if (microtcp_connect (&sock, (struct sockaddr *) &sin, sizeof(struct sockaddr_in)) == -1) {
     perror ("TCP connect");
     exit (EXIT_FAILURE);
   }
-  /*
+  
   printf ("Starting sending data...\n");
-  /* Start sending the data *//*
   while (!feof (fp)) {
     read_items = fread (buffer, sizeof(uint8_t), CHUNK_SIZE, fp);
     if (read_items < 1) {
       perror ("Failed read from file");
-      microtcp_shutdown (&sock, SHUT_RDWR);
-      close (sock.sd);
+      //microtcp_shutdown (&sock, SHUT_RDWR);
+      //close (sock.sd);
       free (buffer);
       fclose (fp);
       return -EXIT_FAILURE;
     }
-
-    data_sent = microtcp_send (&sock, buffer, read_items * sizeof(uint8_t), 0);
+    data_sent = microtcp_send(&sock, buffer, read_items * sizeof(uint8_t), 0);
     if (data_sent != read_items * sizeof(uint8_t)) {
-      printf ("Failed to send the"
-              " amount of data read from the file.\n");
-      microtcp_shutdown (&sock, SHUT_RDWR);
-      close (sock.sd);
+      printf ("Failed to send the amount of data read from the file.\n");
+      //sock.state = CLOSING_BY_PEER;
+      //microtcp_shutdown (&sock, SHUT_RDWR);
+      //close (sock.sd);
       free (buffer);
       fclose (fp);
       return -EXIT_FAILURE;
@@ -425,10 +396,10 @@ client_microtcp (const char *serverip, uint16_t server_port, const char *file)
   }
 
   printf ("Data sent. Terminating...\n");
-  microtcp_shutdown (&sock, SHUT_RDWR);
-  close (sock.sd);
+  sock.state = CLOSING_BY_PEER;
+  microtcp_shutdown(&sock, SHUT_RDWR);
   free (buffer);
-  fclose (fp);*/
+  fclose (fp);
   return 0;
 }
 
