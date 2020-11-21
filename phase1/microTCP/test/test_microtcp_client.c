@@ -99,6 +99,5 @@ main(int argc, char **argv)
     n = microtcp_send(&socket,(const char *)str3, 10,0);
     printf("Send message to server of %d bytes.\n",n);
 
-
     return 0;
 }
