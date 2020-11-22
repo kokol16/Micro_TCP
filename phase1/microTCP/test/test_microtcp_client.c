@@ -49,10 +49,13 @@ int
 main(int argc, char **argv)
 {
     int len,n;
+    
     char * str1 = "Client 1!";
     char * str2 = "Client 2!";
     char * str3 = "Client 3!";
+    
     char buffer[MAXSIZE];
+
     microtcp_sock_t socket;
     struct sockaddr_in servaddr;
 
@@ -61,7 +64,7 @@ main(int argc, char **argv)
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
     if(socket.state == INVALID)
     {
-        printf("Socket creation error\n");
+        perror("Microtcp socket\n");
         exit(EXIT_FAILURE);
     }
 
@@ -74,34 +77,21 @@ main(int argc, char **argv)
 
     if((microtcp_connect(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
     {
-        printf("Could not connect to server\n");
+        perror("Connect\n");
         exit(EXIT_FAILURE);
     }
-
-    /*n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
-    buffer[n] = '\0';
-    printf("First message recieved: %s\n",buffer);*/    
 
     n = microtcp_send(&socket,(const char *)str1, 10,0);
     printf("Send message to server of %d bytes.\n",n);
 
-    /*n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
-    buffer[n] = '\0';
-    printf("Second message recieved: %s\n",buffer);*/
-    
     n = microtcp_send(&socket,(const char *)str2, 10,0);
     printf("Send message to server of %d bytes.\n",n);
 
-    /*n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
-    buffer[n] = '\0';
-    printf("Third message recieved: %s\n",buffer);*/
-    
     n = microtcp_send(&socket,(const char *)str3, 10,0);
     printf("Send message to server of %d bytes.\n",n);
 
-    socket.state = CLOSING_BY_PEER;
     if(microtcp_shutdown(&socket,0)<0){
-        printf("Error shuting down connection\n");
+        perror("Shut down\n");
         return -1;
     }
 

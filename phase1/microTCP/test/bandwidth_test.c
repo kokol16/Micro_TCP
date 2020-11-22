@@ -218,26 +218,21 @@ server_microtcp (uint16_t listen_port, const char *file)
   }
   
   clock_gettime (CLOCK_MONOTONIC_RAW, &start_time);
-  //while ((
-    received = microtcp_recv(&sock, buffer, CHUNK_SIZE, MSG_WAITALL);//) > 0) {
-    printf("Bytes recieved = %d of data %s\n",received,(char *)buffer);
+  while ((received = microtcp_recv(&sock, buffer, CHUNK_SIZE, MSG_WAITALL)) > 0) {
     written = fwrite (buffer, sizeof(uint8_t), received, fp);
     total_bytes += received;
     if (written * sizeof(uint8_t) != received) {
       printf ("Failed to write to the file the amount of data received from the network.\n");
       //sock.state = CLOSING_BY_HOST;
-      //microtcp_shutdown (&sock, SHUT_RDWR);
+      microtcp_shutdown (&sock, SHUT_RDWR);
       free (buffer);
       fclose (fp);
       return -EXIT_FAILURE;
     }
- // }
+  }
   clock_gettime (CLOCK_MONOTONIC_RAW, &end_time);
   print_statistics (total_bytes, start_time, end_time);
-  printf("haha\n");
-  sock.state = CLOSING_BY_HOST;
   microtcp_shutdown (&sock, SHUT_RDWR);
-  printf("ax...\n");
   fclose (fp);
   free (buffer);
 
@@ -376,7 +371,7 @@ client_microtcp (const char *serverip, uint16_t server_port, const char *file)
     read_items = fread (buffer, sizeof(uint8_t), CHUNK_SIZE, fp);
     if (read_items < 1) {
       perror ("Failed read from file");
-      //microtcp_shutdown (&sock, SHUT_RDWR);
+      microtcp_shutdown (&sock, SHUT_RDWR);
       //close (sock.sd);
       free (buffer);
       fclose (fp);
@@ -385,8 +380,8 @@ client_microtcp (const char *serverip, uint16_t server_port, const char *file)
     data_sent = microtcp_send(&sock, buffer, read_items * sizeof(uint8_t), 0);
     if (data_sent != read_items * sizeof(uint8_t)) {
       printf ("Failed to send the amount of data read from the file.\n");
-      //sock.state = CLOSING_BY_PEER;
-      //microtcp_shutdown (&sock, SHUT_RDWR);
+      sock.state = CLOSING_BY_PEER;
+      microtcp_shutdown (&sock, SHUT_RDWR);
       //close (sock.sd);
       free (buffer);
       fclose (fp);

@@ -48,10 +48,6 @@ int
 main(int argc, char **argv)
 {
     int len, n;
-    
-    char * str1 = "Server 1";
-    char * str2 = "Server 2";
-    char * str3 = "Server 3";
 
     char buffer[MAXSIZE];
 
@@ -63,7 +59,7 @@ main(int argc, char **argv)
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
     if(socket.state == INVALID)
     {
-        printf("Socket error");
+        perror("Microtcp socket");
         exit(EXIT_FAILURE);
     }
 
@@ -74,38 +70,22 @@ main(int argc, char **argv)
     servaddr.sin_port = htons(PORT);
 
     if((microtcp_bind(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0){
-        printf("bind failed");
+        perror("Bind");
         exit(EXIT_FAILURE); 
     }
 
     if((microtcp_accept(&socket,(struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
     {
-        printf("Could not accept connection\n");
+        perror("Accept\n");
         return -1;
     }
 
-    /*n = microtcp_send(&socket,(const char *)str1, 9,0);
-    printf("Send message to client of %d bytes.\n",n);
-    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
-    buffer[n] = '\0';
-    printf("First message recieved: %s\n",buffer);
-    n = microtcp_send(&socket,(const char *)str2, 9,0);
-    printf("Send message to client of %d bytes.\n",n);
-    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
-    buffer[n] = '\0';
-    printf("Second message recieved: %s\n",buffer);
-    n = microtcp_send(&socket,(const char *)str3, 9,0);
-    printf("Send message to client of %d bytes.\n",n)
-    n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL);
-    buffer[n] = '\0';
-    printf("Third message recieved: %s\n",buffer);*/
-
     while((microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL))>0){
-        printf("Message received: %s",buffer);
+        printf("Message received: %s\n",buffer);
     }
     
     if(microtcp_shutdown(&socket,0)<0){
-        printf("Error shuting down connection\n");
+        perror("Shut down\n");
         return -1;
     }
 
