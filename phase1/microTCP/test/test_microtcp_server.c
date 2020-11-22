@@ -52,7 +52,7 @@ main(int argc, char **argv)
     char buffer[MAXSIZE];
 
     microtcp_sock_t socket;
-    struct sockaddr_in servaddr;
+    struct sockaddr_in servaddr,cliaddr;
 
     printf("Server running...\n");
 
@@ -64,6 +64,7 @@ main(int argc, char **argv)
     }
 
     memset(&servaddr, 0, sizeof(servaddr));
+    memset(&cliaddr, 0, sizeof(cliaddr)); 
 
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = INADDR_ANY;
@@ -74,7 +75,7 @@ main(int argc, char **argv)
         exit(EXIT_FAILURE); 
     }
 
-    if((microtcp_accept(&socket,(struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
+    if((microtcp_accept(&socket,(struct sockaddr *)&cliaddr,sizeof(cliaddr)))<0)
     {
         perror("Accept\n");
         return -1;

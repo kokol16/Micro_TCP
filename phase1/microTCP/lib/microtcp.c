@@ -65,10 +65,8 @@ microtcp_socket(int domain, int type, int protocol)
 }
 
 int
-microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address,
-                  socklen_t address_len)
+microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address, socklen_t address_len)
 {
-  /*Errno and error handling is done inside bind*/
   int ret_val = bind(socket->sd, address, address_len);
   if(ret_val < 0){
     socket->state = INVALID;
@@ -79,8 +77,7 @@ microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address,
 }
 
 int
-microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address,
-                     socklen_t address_len)
+microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, socklen_t address_len)
 {
   microtcp_header_t *header_ptr;
   microtcp_header_t header_1, header_2, header_3;
@@ -131,8 +128,7 @@ microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address,
 }
 
 int
-microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address,
-                    socklen_t address_len)
+microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address, socklen_t address_len)
 {
   microtcp_header_t *header_ptr;
   microtcp_header_t header_1, header_2, header_3;
@@ -273,8 +269,7 @@ microtcp_shutdown(microtcp_sock_t *socket, int how)
 }
 
 ssize_t
-microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length,
-              int flags)
+microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int flags)
 {
   microtcp_header_t header;
   void *packet = malloc((length + sizeof(header)) * sizeof(char));
@@ -344,8 +339,7 @@ microtcp_raw_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flag
 }
 
 ssize_t
-microtcp_raw_send(microtcp_sock_t *socket, const void *buffer, size_t length,
-                  int flags)
+microtcp_raw_send(microtcp_sock_t *socket, const void *buffer, size_t length, int flags)
 {
   return sendto(socket->sd, buffer, length, flags, (socket->address), socket->address_len);
 }
