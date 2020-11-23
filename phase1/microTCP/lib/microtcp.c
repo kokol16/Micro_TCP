@@ -319,7 +319,7 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
   socket->ack_number = header.ack_number;
   socket->seq_number = header.seq_number;
 
-  if(get_bit(header.control,15) && get_bit(header.control,12)){
+  if(get_bit(header.control,0) && get_bit(header.control,3)){
     socket->state = CLOSING_BY_HOST;
     if(DEBUG){
       printf("Header 1:\n");

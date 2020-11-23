@@ -28,7 +28,7 @@
 uint16_t set_control_bits(int ACK, int RST, int SYN, int FIN)
 {
     uint16_t control = 0;
-    int ack = 12, rst = 13, syn = 14, fin = 15;
+    int ack = 3, rst = 2, syn = 1, fin = 0;
     control = control | ACK << ack;
     control = control | RST << rst;
     control = control | SYN << syn;
@@ -67,7 +67,7 @@ int get_random_int(int min,int max)
  */
 void print_header(microtcp_header_t header)
 {
-    int ack = 12, rst = 13, syn = 14, fin = 15, control = header.control;
+    int ack = 3, rst = 2, syn = 1, fin = 0, control = header.control;
     printf("Header fields are:\n");
     printf("Sequence number: %d\n",header.seq_number);
     printf("Acknowledgement number: %d\n",header.ack_number);
