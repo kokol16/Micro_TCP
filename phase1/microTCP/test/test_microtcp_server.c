@@ -85,6 +85,10 @@ main(int argc, char **argv)
         printf("Message received: %s\n",buffer);
     }
     
+    socket.recvbuf[socket.buf_fill_level] = '\0';
+    printf("Buffer inside : %s\n",(char *)socket.recvbuf);
+    
+
     if(microtcp_shutdown(&socket,0)<0){
         perror("Shut down\n");
         return -1;

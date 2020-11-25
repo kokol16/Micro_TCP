@@ -123,7 +123,7 @@ microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, sockle
   socket->state = ESTABLISHED;
   socket->ack_number = header_3.ack_number;
   socket->seq_number = header_3.seq_number;
-
+  socket->recvbuf = malloc(sizeof(uint8_t)*MICROTCP_RECVBUF_LEN);
   return 0; //may return 1 on success, 0 on failure?
 }
 
@@ -171,6 +171,7 @@ microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address, socklen_t add
   //check again
   socket->seq_number = header_2.seq_number;
   socket->ack_number = header_2.ack_number;
+  socket->recvbuf = malloc(sizeof(uint8_t)*MICROTCP_RECVBUF_LEN);
 
   return 0;
 }
@@ -264,7 +265,7 @@ microtcp_shutdown(microtcp_sock_t *socket, int how)
     socket->state = CLOSED;
     close(socket->sd);
   }
-
+  free(socket->recvbuf);
   return 0;
 }
 
@@ -308,13 +309,19 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
 
   ssize_t bytes_recieved = recvfrom(socket->sd, tmp, length + sizeof(header), flags, (socket->address), &socket->address_len);
 
+  /*Generic error check*/
   if(bytes_recieved == -1){
     free(tmp);
     return -1;
   }
 
   memcpy(&header, tmp, sizeof(header));
-  memcpy(buffer, tmp + (sizeof(header) * sizeof(char)), length);
+  memcpy(buffer, tmp + (sizeof(header) * sizeof(char)), bytes_recieved);
+
+  if(bytes_recieved + socket->buf_fill_level <= MICROTCP_RECVBUF_LEN){
+    memcpy((socket->recvbuf)+socket->buf_fill_level,buffer,bytes_recieved);
+    socket->buf_fill_level += bytes_recieved - sizeof(header);
+  }
 
   socket->ack_number = header.ack_number;
   socket->seq_number = header.seq_number;

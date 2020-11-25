@@ -81,13 +81,13 @@ main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    n = microtcp_send(&socket,(const char *)str1, 10,0);
+    n = microtcp_send(&socket,(const char *)str1, 9,0);
     printf("Send message to server of %d bytes.\n",n);
 
-    n = microtcp_send(&socket,(const char *)str2, 10,0);
+    n = microtcp_send(&socket,(const char *)str2, 9,0);
     printf("Send message to server of %d bytes.\n",n);
 
-    n = microtcp_send(&socket,(const char *)str3, 10,0);
+    n = microtcp_send(&socket,(const char *)str3, 9,0);
     printf("Send message to server of %d bytes.\n",n);
 
     if(microtcp_shutdown(&socket,0)<0){
