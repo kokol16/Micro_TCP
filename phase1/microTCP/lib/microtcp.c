@@ -23,7 +23,7 @@
  * @author Manos Chatzakis (chatzakis@ics.forth.gr)
  * @author George Kokolakis (kokol@ics.forth.gr)
  * @brief microTCP implementation for the undergraduate course cs335a
- * @version 0.1
+ * @version 0.1 - Phase 1
  * @date 2020-11-18
  * 
  * @copyright Copyright (c) 2020
@@ -40,11 +40,8 @@
 #define DEBUG 0
 
 /*
-*
-* TODO: Validate all headers recieve to cover error checking.
-*
-*
-*
+  NOTE: This file implements the handshake and shutdown. 
+  We do not support TCP flow mechanisms yet. (Phase 1)
 */
 
 microtcp_sock_t
@@ -52,14 +49,17 @@ microtcp_socket(int domain, int type, int protocol)
 {
   microtcp_sock_t new_socket;
   memset(&new_socket, 0, sizeof(new_socket));
+
+  /*MicroTCP library only uses UDP and IPv4*/
   protocol = 0;
   type = SOCK_DGRAM;
-  if ((new_socket.sd = socket(domain, type, protocol)) < 0)
-  {
-    perror("Socket Failed.");
+  
+  if((new_socket.sd = socket(domain, type, protocol))< 0){
+    //perror("Socket Failed");
     new_socket.state = INVALID;
     return new_socket;
   }
+
   new_socket.state = CREATED;
   return new_socket;
 }
@@ -72,7 +72,7 @@ microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address, socklen_t
     socket->state = INVALID;
     return -1;
   }
-  socket->state = LISTEN;
+  socket->state = LISTEN; /*Check again*/
   return ret_val;
 }
 
@@ -90,6 +90,7 @@ microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, sockle
   header_1.seq_number = get_random_int(1, 49);
   header_1.control = set_control_bits(0, 0, 1, 0);
   header_ptr = &header_1;
+  /*TODO: Error check for valid {?} send*/
   microtcp_raw_send(socket, header_ptr, sizeof(header_1), 0);
   if (DEBUG)
   {
@@ -99,6 +100,7 @@ microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, sockle
 
   /*Recieving SYN packet*/
   header_ptr = &header_2;
+  /*TODO: Error check for header validation*/
   microtcp_raw_recv(socket, header_ptr, sizeof(header_2), MSG_WAITALL);
   if (DEBUG)
   {
@@ -112,6 +114,7 @@ microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, sockle
   header_3.control = set_control_bits(1, 0, 0, 0);
   header_3.seq_number = header_2.ack_number;
   header_ptr = &header_3;
+  /*TODO: Error check for valid {?} send*/
   microtcp_raw_send(socket, header_ptr, sizeof(header_3), 0);
   if (DEBUG)
   {
@@ -120,11 +123,13 @@ microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, sockle
   }
 
   /*If no error occured, connection is established*/
+  /*TODO: Add the rest of the fields*/
   socket->state = ESTABLISHED;
   socket->ack_number = header_3.ack_number;
   socket->seq_number = header_3.seq_number;
-  socket->recvbuf = malloc(sizeof(uint8_t)*MICROTCP_RECVBUF_LEN);
-  return 0; //may return 1 on success, 0 on failure?
+  socket->recvbuf = malloc(sizeof(uint8_t)*MICROTCP_RECVBUF_LEN); 
+  
+  return 0;
 }
 
 int
@@ -272,71 +277,110 @@ microtcp_shutdown(microtcp_sock_t *socket, int how)
 ssize_t
 microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int flags)
 {
+  ssize_t bytes_sent,data_sent;
   microtcp_header_t header;
-  void *packet = malloc((length + sizeof(header)) * sizeof(char));
+  microtcp_header_t *header_ptr;
+  void *packet;
+
   memset(&header, 0, sizeof(header));
-  microtcp_header_t *header_ptr = &header;
+  header_ptr = &header;
+
+  packet = malloc((length + sizeof(header)) * sizeof(char));
+
+  /*TODO: Discuss what the default header should have*/
   initiliaze_default_header(&header, *socket, length);
-
-  memcpy((packet + sizeof(header)), buffer, length);
   memcpy(packet, header_ptr, sizeof(header));
+  memcpy((packet + sizeof(header)), buffer, length);
 
-  ssize_t bytes_sent = sendto(socket->sd, packet, length + sizeof(header), flags, (socket->address), socket->address_len);
+  bytes_sent = sendto(socket->sd, packet, length + sizeof(header), flags, (socket->address), socket->address_len);
 
+  /*Generic error check*/
   if(bytes_sent == -1)
   {
+    free(packet);
     return -1;
   }
 
-  if(bytes_sent == length + sizeof(header))
-  {
+  data_sent = bytes_sent - sizeof(header);
+
+  /*Optional error check.
+    NOTE: This does not catch every wrong recvfrom execution
+    TODO: Discuss if we need this and what else should we do inside here*/
+  if(data_sent < 0 ){
+    free(packet);
+    return -1;
+  }
+  
+  /*TODO: Discuss this one.. maybe remove..*/
+  if(data_sent == length){
     socket->seq_number = socket->seq_number + length;
     socket->ack_number = header.ack_number;
   }
-  
+
   free(packet);
-  return bytes_sent - sizeof(header);
+  return data_sent;
 }
 
 ssize_t
 microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
 {
+  ssize_t bytes_recieved, data_size;
   microtcp_header_t header,ack_header;
+  microtcp_header_t *header_ptr;
+  void *packet;
+
   memset(&header, 0, sizeof(header));
-  microtcp_header_t *header_ptr = &header;
-
-  void *tmp = malloc((length + sizeof(header)) * sizeof(char));
-
-  ssize_t bytes_recieved = recvfrom(socket->sd, tmp, length + sizeof(header), flags, (socket->address), &socket->address_len);
+  header_ptr = &header;
+  packet = malloc((length + sizeof(header)) * sizeof(char));
+  bytes_recieved = recvfrom(socket->sd, packet, length + sizeof(header), flags, (socket->address), &socket->address_len);
 
   /*Generic error check*/
   if(bytes_recieved == -1){
-    free(tmp);
+    free(packet);
     return -1;
   }
 
-  memcpy(&header, tmp, sizeof(header));
-  memcpy(buffer, tmp + (sizeof(header) * sizeof(char)), bytes_recieved);
+  data_size = bytes_recieved - sizeof(header);
 
-  if(bytes_recieved + socket->buf_fill_level <= MICROTCP_RECVBUF_LEN){
-    memcpy((socket->recvbuf)+socket->buf_fill_level,buffer,bytes_recieved);
-    socket->buf_fill_level += bytes_recieved - sizeof(header);
+  /*Optional error check.
+    NOTE: This does not catch every wrong recvfrom execution
+    TODO: Discuss if we need this and what else should we do inside here*/
+  if(data_size < 0){
+    free(packet);
+    return -1;
   }
 
-  socket->ack_number = header.ack_number;
-  socket->seq_number = header.seq_number;
+  /*The above code executes in case recvfrom works successfully*/
+  /*TODO: Print this header to see if we get the corresponding one of sendto*/
+  memcpy(&header, packet, sizeof(header));
+  memcpy(buffer, packet + (sizeof(header) * sizeof(char)), data_size); /*Check is "data_size is enough"*/
 
-  if(get_bit(header.control,0) && get_bit(header.control,3)){
+  socket->ack_number = header.ack_number; /*Check again*/
+  socket->seq_number = header.seq_number; /*Check again*/
+
+  /*If the recieved packet is connection termination packet (ACK-FIN),
+    0 is returned and the socket gets into closing mode*/
+  if(get_bit(header.control,0) && get_bit(header.control,3)){ 
     socket->state = CLOSING_BY_HOST;
     if(DEBUG){
       printf("Header 1:\n");
       print_header(header);
     }
+    free(packet);
     return 0;
   }
 
-  free(tmp);
-  return bytes_recieved - sizeof(header);
+  /*If this mode is a generic packet recieval, the data are written in the buffer*/
+  if(bytes_recieved + socket->buf_fill_level <= MICROTCP_RECVBUF_LEN){
+    memcpy((socket->recvbuf) + (socket->buf_fill_level),buffer,data_size); /*Check "data_size" again*/
+    socket->buf_fill_level += data_size;
+  }
+
+  free(packet);
+  /*Return the data size
+  NOTE: This could return negative number uppon error on recvfrom
+  TODO: Check if this is good practice*/
+  return data_size; 
 }
 
 ssize_t
