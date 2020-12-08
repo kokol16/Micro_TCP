@@ -50,9 +50,9 @@ main(int argc, char **argv)
 {
     int len,n;
     
-    char * str1 = "Client 1!";
-    char * str2 = "Client 2!";
-    char * str3 = "Client 3!";
+    char *str1 = "Client 1!";
+    char *str2 = "Client 2!";
+    char *str3 = "Client 3!";
     
     char buffer[MAXSIZE];
 
@@ -70,29 +70,41 @@ main(int argc, char **argv)
 
     memset(&servaddr, 0, sizeof(servaddr));
 
-    // Filling server information
+    /*Filling server information*/
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(PORT);
     servaddr.sin_addr.s_addr = INADDR_ANY;
 
-    if((microtcp_connect(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0)
-    {
+    if((microtcp_connect(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0){
         perror("Connect\n");
         exit(EXIT_FAILURE);
     }
 
-    n = microtcp_send(&socket,(const char *)str1, 9,0);
+    n = microtcp_send(&socket, (const char *)str1, 10, 0);
+    if(n!=10){
+        perror("Could not send data\n");
+        exit(EXIT_FAILURE);
+    }
     printf("Send message to server of %d bytes.\n",n);
 
-    n = microtcp_send(&socket,(const char *)str2, 9,0);
+    n = microtcp_send(&socket, (const char *)str2, 10, 0);
+    if(n!=10){
+        perror("Could not send data\n");
+        exit(EXIT_FAILURE);
+    }
     printf("Send message to server of %d bytes.\n",n);
 
-    n = microtcp_send(&socket,(const char *)str3, 9,0);
+    n = microtcp_send(&socket, (const char *)str3, 10, 0);
+    if(n!=10){
+        perror("Could not send data\n");
+        exit(EXIT_FAILURE);
+    }
+    
     printf("Send message to server of %d bytes.\n",n);
 
     if(microtcp_shutdown(&socket,0)<0){
         perror("Shut down\n");
-        return -1;
+        exit(EXIT_FAILURE);
     }
 
     if(socket.state == CLOSED){

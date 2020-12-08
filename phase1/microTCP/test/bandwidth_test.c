@@ -40,8 +40,7 @@
 static inline void
 print_statistics (ssize_t received, struct timespec start, struct timespec end)
 {
-  double elapsed = end.tv_sec - start.tv_sec
-      + (end.tv_nsec - start.tv_nsec) * 1e-9;
+  double elapsed = end.tv_sec - start.tv_sec + (end.tv_nsec - start.tv_nsec) * 1e-9;
   double megabytes = received / (1024.0 * 1024.0);
   printf ("Data received: %f MB\n", megabytes);
   printf ("Transfer time: %f seconds\n", elapsed);
@@ -226,8 +225,9 @@ server_microtcp (uint16_t listen_port, const char *file)
     if (written * sizeof(uint8_t) != received) {
       printf ("Failed to write to the file the amount of data received from the network.\n");
       //microtcp_shutdown(&sock, SHUT_RDWR);
-      close (accepted);
-      //close (sock);
+      //close (accepted);
+      /*Free resources here!*/
+      close (sock.sd); /*this change*/
       free (buffer);
       fclose (fp);
       return -EXIT_FAILURE;

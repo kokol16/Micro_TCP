@@ -48,7 +48,6 @@ int
 main(int argc, char **argv)
 {
     int len, n;
-
     char buffer[MAXSIZE];
 
     microtcp_sock_t socket;
@@ -57,8 +56,7 @@ main(int argc, char **argv)
     printf("Server running...\n");
 
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
-    if(socket.state == INVALID)
-    {
+    if(socket.state == INVALID){
         perror("Microtcp socket");
         exit(EXIT_FAILURE);
     }
@@ -66,32 +64,28 @@ main(int argc, char **argv)
     memset(&servaddr, 0, sizeof(servaddr));
     memset(&cliaddr, 0, sizeof(cliaddr)); 
 
+    /*Filling server information*/
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = INADDR_ANY;
     servaddr.sin_port = htons(PORT);
 
-    if((microtcp_bind(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0){
+    if((microtcp_bind(&socket, (const struct sockaddr *)&servaddr, sizeof(servaddr)))<0){
         perror("Bind");
         exit(EXIT_FAILURE); 
     }
 
-    if((microtcp_accept(&socket,(struct sockaddr *)&cliaddr,sizeof(cliaddr)))<0)
-    {
+    if((microtcp_accept(&socket,(struct sockaddr *)&cliaddr,sizeof(cliaddr)))<0){
         perror("Accept\n");
-        return -1;
+        exit(EXIT_FAILURE); 
     }
 
-    while((microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL))>0){
-        printf("Message received: %s\n",buffer);
+    while((n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL))>0){
+        printf("Message received: %s (%d bytes)\n",buffer,n);
     }
     
-    socket.recvbuf[socket.buf_fill_level] = '\0';
-    printf("Buffer inside : %s\n",(char *)socket.recvbuf);
-    
-
     if(microtcp_shutdown(&socket,0)<0){
         perror("Shut down\n");
-        return -1;
+        exit(EXIT_FAILURE);
     }
 
     if(socket.state == CLOSED){
