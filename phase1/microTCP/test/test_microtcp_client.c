@@ -26,7 +26,7 @@
 /**
  * @file test_microtcp_client.c
  * @author Manos Chatzakis (chatzakis@ics.forth.gr)
- * @author George Kokolakis (kokol@ics.forth.gr)
+ * @author George Kokolakis (gkokol@ics.forth.gr)
  * @brief An example of micro tcp implementation following client-server model.
  * @version 0.1
  * @date 2020-11-18

@@ -21,7 +21,7 @@
 /**
  * @file microtcp.h
  * @author Manos Chatzakis (chatzakis@ics.forth.com)
- * @author George Kokolakis (kokol@ics.forth.com)
+ * @author George Kokolakis (gkokol@ics.forth.com)
  * @brief MicroTCP header file
  * @version 0.1
  * @date 2020-11-26
@@ -122,8 +122,8 @@ typedef struct
   uint32_t checksum;            /**< CRC-32 checksum, see crc32() in utils folder */
 } microtcp_header_t;
 
-
-typedef struct{
+typedef struct
+{
   microtcp_header_t header;
   void* data;  
 } microtcp_packet_t;

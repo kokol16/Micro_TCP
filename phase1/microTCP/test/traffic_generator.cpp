@@ -146,6 +146,7 @@ main (int argc, char **argv)
   LOG_INFO("Going to terminate microtcp connection...");
 
   /* SHUT_RDWR can be omitted internally */
+  //sock.state = CLOSING_BY_PEER;
   microtcp_shutdown(&sock, SHUT_RDWR);
 
 }

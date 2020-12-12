@@ -42,6 +42,7 @@ print_statistics (ssize_t received, struct timespec start, struct timespec end)
 {
   double elapsed = end.tv_sec - start.tv_sec + (end.tv_nsec - start.tv_nsec) * 1e-9;
   double megabytes = received / (1024.0 * 1024.0);
+
   printf ("Data received: %f MB\n", megabytes);
   printf ("Transfer time: %f seconds\n", elapsed);
   printf ("Throughput achieved: %f MB/s\n", megabytes / elapsed);
