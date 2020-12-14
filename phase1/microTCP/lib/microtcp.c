@@ -37,7 +37,7 @@
 #include "common.h"
 #include "../utils/crc32.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 /*
   NOTE: This file implements the handshake and shutdown. 
@@ -50,6 +50,7 @@ microtcp_socket(int domain, int type, int protocol)
   microtcp_sock_t new_socket;
   memset(&new_socket, 0, sizeof(new_socket));
 
+  //new_socket.state = 
   /*MicroTCP library only uses UDP and IPv4*/
   protocol = 0;
   type     = SOCK_DGRAM;
@@ -97,7 +98,6 @@ microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, sockle
   header_1.seq_number = get_random_int(1, 49);
   header_1.control    = set_control_bits(0, 0, 1, 0);
   
-  //header_1 = set_outgoing_header(header_1);
   convert_to_network_header(&header_1);
   microtcp_raw_send(socket, &header_1, sizeof(header_1), 0);
   convert_to_local_header(&header_1);
@@ -198,6 +198,7 @@ microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address, socklen_t add
 int
 microtcp_shutdown(microtcp_sock_t *socket, int how)
 {
+  int ret_val;
   microtcp_header_t *header_ptr;
   microtcp_header_t header_1, header_2, header_3, header_4;
 
@@ -242,8 +243,11 @@ microtcp_shutdown(microtcp_sock_t *socket, int how)
       print_header(header_4);
     }
 
-    socket->ack_number = header_4.ack_number;
-    socket->seq_number = header_4.seq_number;
+    socket->seq_number = header_4.ack_number;
+    socket->ack_number = header_4.seq_number+1;
+
+    //ret_val = shutdown(socket->sd,how);
+
     socket->state = CLOSED;
     
     close(socket->sd);
@@ -296,9 +300,11 @@ microtcp_shutdown(microtcp_sock_t *socket, int how)
       print_header(header_4);
     }
 
-    socket->seq_number = header_4.seq_number;
+    socket->seq_number = header_4.seq_number+1;
     socket->ack_number = header_4.ack_number;
     
+    //ret_val = shutdown(socket->sd,how);
+
     socket->state = CLOSED;
     close(socket->sd);
   }
