@@ -36,12 +36,12 @@
  */
 
 #include "../lib/microtcp.h"
-
+#include "../utils/crc32.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
+#include "../utils/crc32.h"
 #define MAXSIZE 100
 #define PORT 8080
 
@@ -60,6 +60,8 @@ main(int argc, char **argv)
     struct sockaddr_in servaddr;
 
     printf("Client running...\n");
+
+    //printf("%s -> %x\n",str1,crc32(str1,9));
 
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
     if(socket.state == INVALID)

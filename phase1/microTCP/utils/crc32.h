@@ -21,6 +21,8 @@
 #ifndef UTILS_CRC32_H_
 #define UTILS_CRC32_H_
 
+
+
 /**
  * CRC-32 calculation using lookup tables, supporting progressive CRC calculation
  * polynomial: 0x104C11DB7
@@ -31,10 +33,10 @@
  * @return the CRC-32 result
  */
 static inline uint32_t
-update_crc32 (uint32_t crc, const uint8_t *data, size_t len)
+update_crc32 (uint32_t crc, const uint8_t *data, size_t len) 
 {
   static const uint32_t crc32_lut[256] =
-    { 0x00000000L, 0x77073096L, 0xEE0E612CL, 0x990951BAL, 0x076DC419L,
+    {   0x00000000L, 0x77073096L, 0xEE0E612CL, 0x990951BAL, 0x076DC419L,
         0x706AF48FL, 0xE963A535L, 0x9E6495A3L, 0x0EDB8832L, 0x79DCB8A4L,
         0xE0D5E91EL, 0x97D2D988L, 0x09B64C2BL, 0x7EB17CBDL, 0xE7B82D07L,
         0x90BF1D91L, 0x1DB71064L, 0x6AB020F2L, 0xF3B97148L, 0x84BE41DEL,
