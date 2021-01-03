@@ -283,7 +283,7 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
     header_1.seq_number = (socket->seq_number);
     header_1.control = (set_control_bits(1, 0, 0, 1));
     //header_1.window     = socket->curr_win_size;
-    header_1.checksum = crc32(&header_3, sizeof(microtcp_header_t));
+    header_1.checksum = crc32(&header_1, sizeof(microtcp_header_t));
 
     convert_to_network_header(&header_1);
     microtcp_raw_send(socket, &header_1, sizeof(header_1), 0);
@@ -352,7 +352,7 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
 ssize_t
 microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int flags)
 {
-  ssize_t bytes_sent, data_sent; /*bytes_sent is data+header*/
+  ssize_t bytes_sent, data_sent, arg; /*bytes_sent is data+header*/
   microtcp_header_t header, ack_header;
   microtcp_header_t *header_ptr;
   void *packet;
@@ -368,20 +368,17 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
   initiliaze_default_header(&header, *socket, length);
   header.ack_number = socket->ack_number + 1;
 
-  convert_to_network_header(&header);
-  memcpy(packet, header_ptr, sizeof(header));
+  //convert_to_network_header(&header);
+  memcpy(packet, &header, sizeof(header));
   memcpy((packet + sizeof(header)), buffer, length);
 
-  convert_to_local_header(&header);
+  //convert_to_local_header(&header);
   header.checksum = crc32(packet, length + sizeof(header));
-
   convert_to_network_header(&header);
-
   memcpy(packet, &header, sizeof(header));
 
   while (1)
   {
-
     bytes_sent = sendto(socket->sd, packet, length + sizeof(header), flags, socket->address, socket->address_len);
     convert_to_local_header(&header);
     data_sent = bytes_sent - sizeof(header);
@@ -424,16 +421,16 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
 {
   ssize_t bytes_recieved, data_size;
   microtcp_header_t header, ack_header;
-  microtcp_header_t *header_ptr;
+  //microtcp_header_t *header_ptr;
   void *packet;
 
   if (socket == NULL)
     return -1;
 
   memset(&header, 0, sizeof(header));
-  header_ptr = &header;
+  //header_ptr = &header;
   packet = malloc((length + sizeof(header)) * sizeof(char));
-  //
+
   while (1)
   {
 
@@ -453,11 +450,8 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
     memcpy(buffer, packet + (sizeof(header) * sizeof(char)), data_size); /*Check is "data_size is enough"*/
     convert_to_local_header(&header);
 
-    if (socket->ack_number == header.seq_number) //  && validate_checksum(&header,packet,bytes_recieved) ) //&&
+    if (socket->ack_number == header.seq_number && validate_checksum(&header, packet, bytes_recieved)) //&&
     {
-      //printf("inside\n"); 43abd518 43abd518
-      //not duplicate ack
-
       if (get_bit(header.control, 0) && get_bit(header.control, 3))
       {
         socket->state = CLOSING_BY_PEER; /*Host sees fin packet and sets the state to CL B PEER*/

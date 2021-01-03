@@ -101,6 +101,7 @@ void initiliaze_default_header(microtcp_header_t *header, microtcp_sock_t socket
     header->seq_number = socket.seq_number;
     header->data_len = length;
     header->control = set_control_bits(1, 0, 0, 0);
+    header->checksum = 0;
     //header->checksum   = crc32(header,sizeof(microtcp_header_t));
 }
 
@@ -169,13 +170,9 @@ int validate_header(microtcp_header_t *header, int seq, int flag)
 
 int validate_checksum(microtcp_header_t *header, void *packet, size_t length)
 {
-    convert_to_local_header(header);
-    uint32_t old_checksum = header->checksum;
+    long long int curr,old_checksum = (long long int)header->checksum;
     header->checksum = 0;
-    convert_to_network_header(header);
     memcpy(packet, header, sizeof(microtcp_header_t));
-    printf("=========Old: %x == curr %x===========\n",old_checksum,crc32(packet, sizeof(length)));
-    convert_to_local_header(header);
-    return 1;
-    //return old_checksum == crc32(packet, sizeof(length));
+    curr = (long long int)old_checksum,crc32(packet, length);
+    return old_checksum == curr;
 }
