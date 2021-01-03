@@ -135,7 +135,6 @@ void convert_to_network_header(microtcp_header_t *header)
     header->seq_number = htonl(header->seq_number);
     header->data_len = htonl(header->data_len);
     header->checksum = htonl(header->checksum);
-
     header->window = htons(header->window);
     header->control = htons(header->control);
 }
