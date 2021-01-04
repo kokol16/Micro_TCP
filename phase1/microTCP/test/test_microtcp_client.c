@@ -45,16 +45,30 @@
 #define MAXSIZE 100
 #define PORT 8080
 
-int
-main(int argc, char **argv)
+void generateBytes(size_t N, char *buff)
 {
-    int len,n;
+    int i;
+    buff = malloc(sizeof(char) * N);
+    for (i = 0; i < N; i++)
+    {
+        buff[i] = 'c';
+    }
+}
+
+int main(int argc, char **argv)
+{
+    int len, n;
+
+    //char *str1 = "Client 1!";
+    char str1[1000];
     
-    char *str1 = "Client 1!";
+
     char *str2 = "Client 2!";
     char *str3 = "Client 3!";
-    
+
     char buffer[MAXSIZE];
+
+    generateBytes(10,str1);
 
     microtcp_sock_t socket;
     struct sockaddr_in servaddr;
@@ -64,7 +78,7 @@ main(int argc, char **argv)
     //printf("%s -> %x\n",str1,crc32(str1,9));
 
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
-    if(socket.state == INVALID)
+    if (socket.state == INVALID)
     {
         perror("Microtcp socket\n");
         exit(EXIT_FAILURE);
@@ -77,39 +91,45 @@ main(int argc, char **argv)
     servaddr.sin_port = htons(PORT);
     servaddr.sin_addr.s_addr = INADDR_ANY;
 
-    if((microtcp_connect(&socket,(const struct sockaddr *)&servaddr,sizeof(servaddr)))<0){
+    if ((microtcp_connect(&socket, (const struct sockaddr *)&servaddr, sizeof(servaddr))) < 0)
+    {
         perror("Connect\n");
         exit(EXIT_FAILURE);
     }
 
     n = microtcp_send(&socket, (const char *)str1, 10, 0);
-    if(n!=10){
+    if (n != 10)
+    {
         perror("Could not send data\n");
         exit(EXIT_FAILURE);
     }
-    printf("Send message to server of %d bytes.\n",n);
+    printf("Send message to server of %d bytes.\n", n);
 
     n = microtcp_send(&socket, (const char *)str2, 10, 0);
-    if(n!=10){
+    if (n != 10)
+    {
         perror("Could not send data\n");
         exit(EXIT_FAILURE);
     }
-    printf("Send message to server of %d bytes.\n",n);
+    printf("Send message to server of %d bytes.\n", n);
 
     n = microtcp_send(&socket, (const char *)str3, 10, 0);
-    if(n!=10){
+    if (n != 10)
+    {
         perror("Could not send data\n");
         exit(EXIT_FAILURE);
     }
-    
-    printf("Send message to server of %d bytes.\n",n);
 
-    if(microtcp_shutdown(&socket,0)<0){
+    printf("Send message to server of %d bytes.\n", n);
+
+    if (microtcp_shutdown(&socket, 0) < 0)
+    {
         perror("Shut down\n");
         exit(EXIT_FAILURE);
     }
 
-    if(socket.state == CLOSED){
+    if (socket.state == CLOSED)
+    {
         printf("Shutdown succeed\n");
     }
 

@@ -170,9 +170,23 @@ int validate_header(microtcp_header_t *header, int seq, int flag)
 
 int validate_checksum(microtcp_header_t *header, void *packet, size_t length)
 {
-    long long int curr,old_checksum = (long long int)header->checksum;
+    long long int curr, old_checksum = (long long int)header->checksum;
     header->checksum = 0;
     memcpy(packet, header, sizeof(microtcp_header_t));
-    curr = (long long int)old_checksum,crc32(packet, length);
+    curr = (long long int)old_checksum, crc32(packet, length);
     return old_checksum == curr;
+}
+
+size_t min(size_t a, size_t b, size_t c)
+{
+    if (a < b && a < c)
+    {
+        return a;
+    }
+    else if (b < c)
+    {
+        return b;
+    }
+
+    return c;
 }
