@@ -176,7 +176,9 @@ int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address, socklen_t
   }
 
   if (!validate_header(&header_1, 0, 1))
+  {
     return -1;
+  }
 
   /*Sending the second packet*/
   memset(&header_2, 0, sizeof(header_2));
@@ -233,15 +235,11 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
   /*Server side*/
   if (socket->state == CLOSING_BY_PEER)
   {
-
     socket->seq_number += 1;
-
     memset(&header_3, 0, sizeof(header_3));
-    /*We set this randomly because of the instructions. Based on the pdf we should have set this as M+2, etc. header_2.seq_number + 1*/
-    header_3.seq_number = socket->seq_number; //+ 1; //get_random_int(110, 150);
-    header_3.ack_number = socket->ack_number; //+ 1;
+    header_3.seq_number = socket->seq_number;
+    header_3.ack_number = socket->ack_number;
     header_3.control = set_control_bits(1, 0, 0, 1);
-    //header_3.window = socket->curr_win_size;
     header_3.checksum = crc32(&header_3, sizeof(microtcp_header_t));
 
     convert_to_network_header(&header_3);
@@ -253,8 +251,6 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
       printf("Header 3:\n");
       print_header(header_3);
     }
-
-    //convert_to_network_header(&header_4);
     microtcp_raw_recv(socket, &header_4, sizeof(header_4), MSG_WAITALL);
     convert_to_local_header(&header_4);
 
@@ -282,7 +278,6 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
     header_1.ack_number = (socket->ack_number);
     header_1.seq_number = (socket->seq_number);
     header_1.control = (set_control_bits(1, 0, 0, 1));
-    //header_1.window     = socket->curr_win_size;
     header_1.checksum = crc32(&header_1, sizeof(microtcp_header_t));
 
     convert_to_network_header(&header_1);
@@ -325,7 +320,6 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
     header_4.ack_number = header_3.seq_number + 1;
     header_4.seq_number = header_3.ack_number;
     header_4.control = set_control_bits(1, 0, 0, 0);
-    //header_4.window     = socket->curr_win_size;
     header_4.checksum = crc32(&header_4, sizeof(microtcp_header_t));
 
     convert_to_network_header(&header_4);
@@ -352,27 +346,21 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
 ssize_t
 microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int flags)
 {
-  ssize_t bytes_sent, data_sent, arg; /*bytes_sent is data+header*/
+  ssize_t bytes_sent, data_sent; /*bytes_sent is data+header*/
   microtcp_header_t header, ack_header;
-  microtcp_header_t *header_ptr;
   void *packet;
 
   if (socket == NULL)
     return -1;
 
   memset(&header, 0, sizeof(header));
-  header_ptr = &header;
-
   packet = malloc((length + sizeof(header)) * sizeof(char));
 
   initiliaze_default_header(&header, *socket, length);
   header.ack_number = socket->ack_number + 1;
 
-  //convert_to_network_header(&header);
   memcpy(packet, &header, sizeof(header));
   memcpy((packet + sizeof(header)), buffer, length);
-
-  //convert_to_local_header(&header);
   header.checksum = crc32(packet, length + sizeof(header));
   convert_to_network_header(&header);
   memcpy(packet, &header, sizeof(header));
@@ -383,17 +371,14 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
     convert_to_local_header(&header);
     data_sent = bytes_sent - sizeof(header);
 
-    /*Generic error check*/
     if (bytes_sent == -1 || bytes_sent != length + sizeof(header) || data_sent != length)
     {
-      free(packet);
-      return -1;
+      //free(packet);
+      continue;
     }
 
     microtcp_raw_recv(socket, &ack_header, sizeof(ack_header), MSG_WAITALL);
     convert_to_local_header(&ack_header);
-
-    //validate
 
     if (ack_header.ack_number == socket->seq_number + length)
     {
@@ -421,21 +406,17 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
 {
   ssize_t bytes_recieved, data_size;
   microtcp_header_t header, ack_header;
-  //microtcp_header_t *header_ptr;
   void *packet;
 
   if (socket == NULL)
     return -1;
 
   memset(&header, 0, sizeof(header));
-  //header_ptr = &header;
   packet = malloc((length + sizeof(header)) * sizeof(char));
 
   while (1)
   {
-
     bytes_recieved = recvfrom(socket->sd, packet, length + sizeof(header), flags, (socket->address), &socket->address_len);
-
     /*Generic error check*/
     if (bytes_recieved == -1)
     {
@@ -444,17 +425,15 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
     }
 
     data_size = bytes_recieved - sizeof(header);
-
-    /*The above code executes in case recvfrom works successfully*/
     memcpy(&header, packet, sizeof(header));
-    memcpy(buffer, packet + (sizeof(header) * sizeof(char)), data_size); /*Check is "data_size is enough"*/
+    memcpy(buffer, packet + (sizeof(header) * sizeof(char)), data_size);
     convert_to_local_header(&header);
 
-    if (socket->ack_number == header.seq_number && validate_checksum(&header, packet, bytes_recieved)) //&&
+    if (socket->ack_number == header.seq_number && validate_checksum(&header, packet, bytes_recieved))
     {
       if (get_bit(header.control, 0) && get_bit(header.control, 3))
       {
-        socket->state = CLOSING_BY_PEER; /*Host sees fin packet and sets the state to CL B PEER*/
+        socket->state = CLOSING_BY_PEER;
         socket->seq_number = header.ack_number;
         socket->ack_number += 1;
 
@@ -472,10 +451,10 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
         {
           printf("Header 1:\n");
           print_header(header);
-
           printf("Header 2:\n");
           print_header(ack_header);
         }
+
         free(packet);
         return 0;
       }
@@ -524,7 +503,6 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
   }
 
   free(packet);
-  /*Return the data size. NOTE: This could return negative number uppon error on recvfrom*/
   return data_size;
 }
 
