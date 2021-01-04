@@ -37,8 +37,8 @@
 #include "common.h"
 #include "../utils/crc32.h"
 
-#define DEBUG 1
-#define DEBUG_DATA 1
+#define DEBUG 0
+#define DEBUG_DATA 0
 
 microtcp_sock_t
 microtcp_socket(int domain, int type, int protocol)
@@ -286,7 +286,7 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
 
     if (DEBUG)
     {
-      printf("Header 1:\n");
+      printf("Header 1 ???:\n");
       print_header(header_1);
     }
 
@@ -295,7 +295,7 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
 
     if (DEBUG)
     {
-      printf("Header 2:\n");
+      printf("Header 2 ???:\n");
       print_header(header_2);
     }
 
@@ -369,10 +369,11 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
       memset(&header, 0, sizeof(header));
       initiliaze_default_header(&header, *socket, MICROTCP_MSS);
 
-      header.ack_number = socket->ack_number + 1;
+      header.ack_number = socket->ack_number + 1 + i;
+      header.seq_number = socket->seq_number + (i * MICROTCP_MSS);
 
       memcpy(packet, &header, sizeof(microtcp_header_t));
-      memcpy((packet + sizeof(microtcp_header_t)), (buffer + (chunks * MICROTCP_MSS) * sizeof(char)), MICROTCP_MSS); //check again
+      memcpy((packet + sizeof(microtcp_header_t)), (buffer + (i * MICROTCP_MSS) * sizeof(char)), MICROTCP_MSS); //check again
 
       header.checksum = crc32(packet, MICROTCP_MSS + sizeof(header));
       convert_to_network_header(&header);
@@ -380,6 +381,12 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
 
       sendto(socket->sd, packet, MICROTCP_MSS + sizeof(header), flags, socket->address, socket->address_len);
       convert_to_local_header(&header);
+
+      if (DEBUG_DATA)
+      {
+        printf("Send: Header sent:\n");
+        print_header(header);
+      }
     }
 
     rem = bytes_to_sent % MICROTCP_MSS;
@@ -389,7 +396,8 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
       memset(&header, 0, sizeof(header));
       initiliaze_default_header(&header, *socket, rem);
 
-      header.ack_number = socket->ack_number + 1;
+      header.ack_number = socket->ack_number + 1 + chunks;
+      header.seq_number = socket->seq_number + (MICROTCP_MSS * chunks);
 
       memcpy(packet, &header, sizeof(microtcp_header_t));
       memcpy((packet + sizeof(microtcp_header_t)), (buffer + (MICROTCP_MSS * chunks) * sizeof(char)), rem); //check again
@@ -401,11 +409,17 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
       sendto(socket->sd, packet, rem + sizeof(header), flags, socket->address, socket->address_len);
       convert_to_local_header(&header);
       chunks++;
+
+      if (DEBUG_DATA)
+      {
+        printf("Send: Header sent:\n");
+        print_header(header);
+      }
     }
 
     timeout.tv_sec = 0;
     timeout.tv_usec = MICROTCP_ACK_TIMEOUT_US;
-    if (setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval)) < 0)
+    if (setsockopt(socket->sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval)) < 0)
     {
       perror("setsockopt");
     }
@@ -426,6 +440,15 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
         socket->ack_number = ack_header.seq_number;
       }
       //else duplicate ack
+      else{
+        printf("CLIENT FOUND DUP ACK\n");
+      }
+
+      if (DEBUG_DATA)
+      {
+        printf("Send: Header recieved (ACK):\n");
+        print_header(ack_header);
+      }
     }
 
     flow_control = ack_header.window;
@@ -434,12 +457,12 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
     remaining_bytes -= bytes_to_sent;
     total_bytes_sent += bytes_to_sent;
 
-    if (DEBUG_DATA)
+    /*if (DEBUG_DATA)
     {
       printf("Sent and recieved:\n");
       print_header(header);
       print_header(ack_header);
-    }
+    }*/
   }
 
   free(packet);
@@ -457,7 +480,7 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
     return -1;
 
   memset(&header, 0, sizeof(header));
-  packet = malloc((length + sizeof(header)) * sizeof(char));
+  packet = malloc((MICROTCP_MSS + sizeof(header)) * sizeof(char));
 
   bytes_recieved = recvfrom(socket->sd, packet, MICROTCP_MSS + sizeof(header), flags, (socket->address), &socket->address_len);
 
@@ -465,6 +488,7 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
   if (bytes_recieved == -1)
   {
     free(packet);
+    printf("KOKOLAKI EISAI ILITHIOS\n");
     return -1;
   }
 
@@ -477,6 +501,9 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
   {
     if (get_bit(header.control, 0) && get_bit(header.control, 3))
     {
+
+      printf("O manos einai omorfos\n");
+
       socket->state = CLOSING_BY_PEER;
       socket->seq_number = header.ack_number;
       socket->ack_number += 1;
@@ -491,21 +518,24 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
       microtcp_raw_send(socket, &ack_header, sizeof(header), 0);
       convert_to_local_header(&ack_header);
 
+      //printf("before..\n");
+
       if (DEBUG)
       {
-        printf("Header 1:\n");
+        printf("Header 1 LALA:\n");
         print_header(header);
         printf("Header 2:\n");
         print_header(ack_header);
       }
 
+      printf("exiting...\n");
       free(packet);
       return 0;
     }
     else
     {
       data_size = header.data_len;
-      
+
       if (socket->buf_fill_level + data_size < MICROTCP_RECVBUF_LEN)
       {
         memcpy((socket->recvbuf + socket->buf_fill_level), (packet + sizeof(microtcp_header_t)), data_size);
@@ -530,9 +560,18 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
       microtcp_raw_send(socket, &ack_header, sizeof(header), 0);
       convert_to_local_header(&ack_header);
 
-      memcpy(buffer,socket->recvbuf,socket->buf_fill_level);
-      memset(socket->recvbuf,0,socket->buf_fill_level);
+      memcpy(buffer, socket->recvbuf, socket->buf_fill_level);
+      memset(socket->recvbuf, 0, socket->buf_fill_level);
       socket->buf_fill_level = 0;
+
+      if (DEBUG_DATA)
+      {
+        printf("Recieve: Header recieved:\n");
+        print_header(header);
+
+        printf("Recieve: Header sent (ACK):\n");
+        print_header(ack_header);
+      }
     }
   }
   else
@@ -543,17 +582,19 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
     ack_header.ack_number = socket->ack_number;
     ack_header.control = set_control_bits(1, 0, 0, 0);
 
+    printf("DUPLICATE ACK");
+
     convert_to_network_header(&ack_header);
     microtcp_raw_send(socket, &ack_header, sizeof(header), 0);
     convert_to_local_header(&ack_header);
   }
 
-  if (DEBUG_DATA)
+  /*if (DEBUG_DATA)
   {
     printf("Recieved and sent:");
     print_header(header);
     print_header(ack_header);
-  }
+  }*/
 
   free(packet);
   return data_size;

@@ -42,13 +42,16 @@
 #include <string.h>
 #include <stdio.h>
 #include "../utils/crc32.h"
+
+#define MANY_DATA 1000000
+
 #define MAXSIZE 100
 #define PORT 8080
 
 void generateBytes(size_t N, char *buff)
 {
     int i;
-    buff = malloc(sizeof(char) * N);
+    //buff = malloc(sizeof(char) * N);
     for (i = 0; i < N; i++)
     {
         buff[i] = 'c';
@@ -60,7 +63,7 @@ int main(int argc, char **argv)
     int len, n;
 
     //char *str1 = "Client 1!";
-    char str1[1000];
+    char str1[MANY_DATA];
     
 
     char *str2 = "Client 2!";
@@ -68,7 +71,7 @@ int main(int argc, char **argv)
 
     char buffer[MAXSIZE];
 
-    generateBytes(10,str1);
+    generateBytes(MANY_DATA,str1);
 
     microtcp_sock_t socket;
     struct sockaddr_in servaddr;
@@ -97,23 +100,25 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    n = microtcp_send(&socket, (const char *)str1, 10, 0);
-    if (n != 10)
+    n = microtcp_send(&socket, (const char *)str1, MANY_DATA, 0);
+    if (n != MANY_DATA)
+    {
+        perror("Could not send data\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("Send message to server of %d bytes.\n", n);
+   /* int x = 3;
+    int * ptr = &x;
+    //*ptr = 3;
+    n = microtcp_send(&socket, (const int *)ptr, 4, 0);
+    if (n != 4)
     {
         perror("Could not send data\n");
         exit(EXIT_FAILURE);
     }
     printf("Send message to server of %d bytes.\n", n);
 
-    n = microtcp_send(&socket, (const char *)str2, 10, 0);
-    if (n != 10)
-    {
-        perror("Could not send data\n");
-        exit(EXIT_FAILURE);
-    }
-    printf("Send message to server of %d bytes.\n", n);
-
-    n = microtcp_send(&socket, (const char *)str3, 10, 0);
+    /*n = microtcp_send(&socket, (const char *)str3, 10, 0);
     if (n != 10)
     {
         perror("Could not send data\n");
@@ -121,7 +126,7 @@ int main(int argc, char **argv)
     }
 
     printf("Send message to server of %d bytes.\n", n);
-
+*/
     if (microtcp_shutdown(&socket, 0) < 0)
     {
         perror("Shut down\n");

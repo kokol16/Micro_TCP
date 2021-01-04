@@ -41,54 +41,62 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MAXSIZE 1000
+#define MAXSIZE 1000000
 #define PORT 8080
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
-    int len, n;
+    int len, n,count;
     char buffer[MAXSIZE];
 
     microtcp_sock_t socket;
-    struct sockaddr_in servaddr,cliaddr;
+    struct sockaddr_in servaddr, cliaddr;
 
     printf("Server running...\n");
 
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
-    if(socket.state == INVALID){
+    if (socket.state == INVALID)
+    {
         perror("Microtcp socket");
         exit(EXIT_FAILURE);
     }
 
     memset(&servaddr, 0, sizeof(servaddr));
-    memset(&cliaddr, 0, sizeof(cliaddr)); 
+    memset(&cliaddr, 0, sizeof(cliaddr));
 
     /*Filling server information*/
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = INADDR_ANY;
     servaddr.sin_port = htons(PORT);
 
-    if((microtcp_bind(&socket, (const struct sockaddr *)&servaddr, sizeof(servaddr)))<0){
+    if ((microtcp_bind(&socket, (const struct sockaddr *)&servaddr, sizeof(servaddr))) < 0)
+    {
         perror("Bind");
-        exit(EXIT_FAILURE); 
+        exit(EXIT_FAILURE);
     }
 
-    if((microtcp_accept(&socket,(struct sockaddr *)&cliaddr,sizeof(cliaddr)))<0){
+    if ((microtcp_accept(&socket, (struct sockaddr *)&cliaddr, sizeof(cliaddr))) < 0)
+    {
         perror("Accept\n");
-        exit(EXIT_FAILURE); 
+        exit(EXIT_FAILURE);
     }
 
-    while((n = microtcp_recv(&socket,(char *)buffer,MAXSIZE,MSG_WAITALL))>0){
-        printf("Message received: %s (%d bytes)\n",buffer,n);
+    while ((n = microtcp_recv(&socket, (char *)buffer, MAXSIZE, MSG_WAITALL)) > 0)
+    {
+        //printf("Message received: %s (%d bytes)\n",buffer,n);
+        //printf("Message received: %d (%d bytes)\n", *buffer, n);
+        count += n;
+        printf("Data received: %d\n",count);
     }
-    
-    if(microtcp_shutdown(&socket,0)<0){
+
+    if (microtcp_shutdown(&socket, 0) < 0)
+    {
         perror("Shut down\n");
         exit(EXIT_FAILURE);
     }
 
-    if(socket.state == CLOSED){
+    if (socket.state == CLOSED)
+    {
         printf("Shutdown succeed\n");
     }
 
