@@ -43,7 +43,7 @@
 #include <stdio.h>
 #include "../utils/crc32.h"
 
-#define MANY_DATA 1000000
+#define MANY_DATA 3000000
 
 #define MAXSIZE 100
 #define PORT 8080
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
     }
     printf("Send message to server of %d bytes.\n", n);
 
-    /*n = microtcp_send(&socket, (const char *)str3, 10, 0);
+    n = microtcp_send(&socket, (const char *)str3, 10, 0);
     if (n != 10)
     {
         perror("Could not send data\n");

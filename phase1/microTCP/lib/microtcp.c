@@ -40,6 +40,14 @@
 #define DEBUG 0
 #define DEBUG_DATA 0
 
+/*
+1) flow window  = 0
+2) test retrans
+3) code cleanup
+4) test bandwidth
+5) check ack/seq evaluations
+*/
+
 microtcp_sock_t
 microtcp_socket(int domain, int type, int protocol)
 {
@@ -148,6 +156,9 @@ int microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, so
   socket->init_win_size = header_2.window;
   socket->curr_win_size = header_2.window;
 
+  socket->cwnd = MICROTCP_INIT_CWND;
+  socket->ssthresh = MICROTCP_INIT_SSTHRESH;
+
   socket->recvbuf = malloc(sizeof(uint8_t) * MICROTCP_RECVBUF_LEN);
   socket->buf_fill_level = 0;
 
@@ -218,6 +229,9 @@ int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address, socklen_t
 
   socket->init_win_size = header_3.window;
   socket->curr_win_size = header_3.window;
+
+  socket->cwnd = MICROTCP_INIT_CWND;
+  socket->ssthresh = MICROTCP_INIT_SSTHRESH;
 
   socket->recvbuf = malloc(sizeof(uint8_t) * MICROTCP_RECVBUF_LEN);
   socket->buf_fill_level = 0;
@@ -348,21 +362,30 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
 {
   ssize_t bytes_sent, data_sent, recv, bytes_to_sent, total_bytes_sent = 0; /*bytes_sent is data+header*/
   size_t rem, chunk_size, remaining_bytes, flow_control = socket->init_win_size, total_length = length + sizeof(microtcp_header_t);
-  int chunks, i;
+
+  int chunks, i, duplicate_counter = 0, ret_chunk = 0, ret_ack = 0, isTripleDuplicate = 0, isTimeout = 0;
+
   microtcp_header_t header, ack_header;
+
   void *packet;
   struct timeval timeout;
 
   if (socket == NULL)
     return -1;
 
+  /*MSS does not contain the header size*/
   packet = malloc((MICROTCP_MSS + sizeof(microtcp_header_t)) * sizeof(char));
 
   remaining_bytes = length;
   while (total_bytes_sent < length)
   {
-    bytes_to_sent = min(remaining_bytes, flow_control, remaining_bytes + flow_control);
+
+    duplicate_counter = 0;
+    bytes_to_sent = min(remaining_bytes, flow_control, socket->cwnd);
     chunks = bytes_to_sent / MICROTCP_MSS; /*how many segments*/
+    printf("======================\n");
+    printf("Remaining Bytes: %d\nFlow Control Window: %d\nCongestion Control Window: %d\n", remaining_bytes, flow_control, socket->cwnd);
+    printf("Transmission round: Bytes to sent = %d\n", bytes_to_sent);
 
     for (i = 0; i < chunks; i++)
     {
@@ -376,9 +399,9 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
       memcpy((packet + sizeof(microtcp_header_t)), (buffer + (i * MICROTCP_MSS) * sizeof(char)), MICROTCP_MSS); //check again
 
       header.checksum = crc32(packet, MICROTCP_MSS + sizeof(header));
+
       convert_to_network_header(&header);
       memcpy(packet, &header, sizeof(header));
-
       sendto(socket->sd, packet, MICROTCP_MSS + sizeof(header), flags, socket->address, socket->address_len);
       convert_to_local_header(&header);
 
@@ -390,7 +413,7 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
     }
 
     rem = bytes_to_sent % MICROTCP_MSS;
-
+    /*rem = remaining bytes*/
     if (rem > 0)
     {
       memset(&header, 0, sizeof(header));
@@ -419,29 +442,54 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
 
     timeout.tv_sec = 0;
     timeout.tv_usec = MICROTCP_ACK_TIMEOUT_US;
-    if (setsockopt(socket->sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval)) < 0)
-    {
-      perror("setsockopt");
-    }
 
     for (i = 0; i < chunks; i++)
     {
+
+      if (setsockopt(socket->sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval)) < 0)
+      {
+        perror("setsockopt");
+      }
+
       recv = microtcp_raw_recv(socket, &ack_header, sizeof(ack_header), MSG_WAITALL);
       convert_to_local_header(&ack_header);
+
       chunk_size = MICROTCP_MSS;
+
       if (i + 1 == chunks)
       {
         chunk_size = rem;
       }
-      if (recv > 0 && ack_header.ack_number == socket->seq_number + chunk_size)
+
+      if (recv < 0)
       {
-        //not duplicate ack
-        socket->seq_number += chunk_size;
-        socket->ack_number = ack_header.seq_number;
+        printf("Timeout!\n");
+        isTimeout = 1;
+        break;
       }
-      //else duplicate ack
-      else{
-        printf("CLIENT FOUND DUP ACK\n");
+
+      if (ack_header.ack_number <= socket->seq_number + (i * chunk_size))
+      {
+        printf("Duplicate ACK!\n");
+
+        if (ack_header.ack_number > ret_ack)
+        {
+          duplicate_counter = 0;
+        }
+
+        duplicate_counter++;
+
+        if (duplicate_counter == 1)
+        {
+          ret_ack = ack_header.ack_number;
+          ret_chunk = i;
+        }
+
+        if (duplicate_counter == 3)
+        {
+          isTripleDuplicate = 1;
+          break;
+        }
       }
 
       if (DEBUG_DATA)
@@ -454,15 +502,41 @@ microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length, int fl
     flow_control = ack_header.window;
     socket->curr_win_size = flow_control;
 
+    if (isTripleDuplicate)
+    {
+      printf("TRIPLE DUP OCCURED!!\n");
+      socket->ssthresh = socket->cwnd / 2;
+      socket->cwnd = socket->cwnd / 2 + 1;
+      isTripleDuplicate = 0;
+      continue;
+    }
+
+    if (isTimeout)
+    {
+      printf("TIMEOUT OCCURED!!\n");
+      socket->ssthresh = socket->cwnd / 2;
+      socket->cwnd = min(MICROTCP_MSS, socket->ssthresh, socket->ssthresh + MICROTCP_MSS);
+      isTimeout = 0;
+      printf("New ssthresh: %d\nNew cwnd: %d\n",socket->ssthresh, socket->cwnd);
+      continue;
+    }
+
+    if (socket->cwnd <= socket->ssthresh)
+    {
+      printf("Slow Start Phase\n");
+      socket->cwnd *= 2; //check again
+    }
+    else
+    {
+      printf("Congestion Avoidance Phase\n");
+      socket->cwnd += MICROTCP_MSS;
+    }
+
     remaining_bytes -= bytes_to_sent;
     total_bytes_sent += bytes_to_sent;
 
-    /*if (DEBUG_DATA)
-    {
-      printf("Sent and recieved:\n");
-      print_header(header);
-      print_header(ack_header);
-    }*/
+    socket->seq_number += bytes_to_sent;
+    socket->ack_number = ack_header.seq_number + 1;
   }
 
   free(packet);
@@ -496,6 +570,8 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
   memcpy(&header, packet, sizeof(header));
   //memcpy(buffer, packet + (sizeof(header) * sizeof(char)), data_size);
   convert_to_local_header(&header);
+
+  //sleep(1);
 
   if (socket->ack_number == header.seq_number && validate_checksum(&header, packet, bytes_recieved))
   {
@@ -547,7 +623,7 @@ microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags)
         rem_size = 0;
       }
 
-      socket->seq_number = header.ack_number;
+      socket->seq_number = header.ack_number; //sdhfiueqwgrgpigpqe9gqehvgpqe
       socket->ack_number = header.seq_number + data_size;
 
       memset(&ack_header, 0, sizeof(header));

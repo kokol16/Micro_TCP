@@ -41,7 +41,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MAXSIZE 1000000
+#define MAXSIZE 3000000
 #define PORT 8080
 
 int main(int argc, char **argv)
@@ -86,8 +86,10 @@ int main(int argc, char **argv)
         //printf("Message received: %s (%d bytes)\n",buffer,n);
         //printf("Message received: %d (%d bytes)\n", *buffer, n);
         count += n;
-        printf("Data received: %d\n",count);
+        printf("Data received: %d\n",n);
     }
+
+    printf("Total data recieved: %d\n", count);
 
     if (microtcp_shutdown(&socket, 0) < 0)
     {

@@ -163,12 +163,12 @@ void convert_to_local_header(microtcp_header_t *header)
  */
 int validate_header(microtcp_header_t *header, int seq, int flag)
 {
-    /*long long int curr,old_checksum = (long long int)header->checksum;
+    long long int curr,old_checksum = (long long int)header->checksum;
     header->checksum = 0;
     curr = (long long int) crc32(header, sizeof(microtcp_header_t));
     //printf("Old = %x curr = %x\n",old_checksum,crc32(header,sizeof(microtcp_header_t)));
-    return (old_checksum == curr) && (flag || seq == header->ack_number - 1);*/
-    return 1;
+    return (old_checksum == curr) && (flag || seq == header->ack_number - 1);
+    //return 1;
 }
 
 int validate_checksum(microtcp_header_t *header, void *packet, size_t length)
