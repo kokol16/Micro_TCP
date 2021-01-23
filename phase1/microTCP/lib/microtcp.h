@@ -35,8 +35,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdint.h>
-#include <arpa/inet.h> 
-#include <netinet/in.h> 
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 /*
  * Several useful constants
@@ -65,7 +65,6 @@ typedef enum
   INVALID
 } mircotcp_state_t;
 
-
 /**
  * This is the microTCP socket structure. It holds all the necessary
  * information of each microTCP socket.
@@ -74,26 +73,26 @@ typedef enum
  */
 typedef struct
 {
-  int sd;                       /**< The underline UDP socket descriptor */
-  mircotcp_state_t state;       /**< The state of the microTCP socket */
-  size_t init_win_size;         /**< The window size negotiated at the 3-way handshake */
-  size_t curr_win_size;         /**< The current window size */
+  int sd;                 /**< The underline UDP socket descriptor */
+  mircotcp_state_t state; /**< The state of the microTCP socket */
+  size_t init_win_size;   /**< The window size negotiated at the 3-way handshake */
+  size_t curr_win_size;   /**< The current window size */
 
-  uint8_t *recvbuf;             /**< The *receive* buffer of the TCP
+  uint8_t *recvbuf;      /**< The *receive* buffer of the TCP
                                      connection. It is allocated during the connection establishment and
                                      is freed at the shutdown of the connection. This buffer is used
                                      to retrieve the data from the network. */
-  size_t buf_fill_level;        /**< Amount of data in the buffer */
+  size_t buf_fill_level; /**< Amount of data in the buffer */
 
   size_t cwnd;
   size_t ssthresh;
 
   /*Modified the types to be compatible with header struct*/
-  uint32_t seq_number;          /**< Keep the state of the sequence number */
-  uint32_t ack_number;          /**< Keep the state of the ack number */
+  uint32_t seq_number; /**< Keep the state of the sequence number */
+  uint32_t ack_number; /**< Keep the state of the ack number */
 
   /*Added information for socket address*/
-  struct sockaddr* address;
+  struct sockaddr *address;
   socklen_t address_len;
 
   uint64_t packets_send;
@@ -104,28 +103,27 @@ typedef struct
   uint64_t bytes_lost;
 } microtcp_sock_t;
 
-
 /**
  * microTCP header structure
  * NOTE: DO NOT CHANGE!
  */
 typedef struct
 {
-  uint32_t seq_number;          /**< Sequence number */
-  uint32_t ack_number;          /**< ACK number */
-  uint16_t control;             /**< Control bits (e.g. SYN, ACK, FIN) */
-  uint16_t window;              /**< Window size in bytes */
-  uint32_t data_len;            /**< Data length in bytes (EXCLUDING header) */
-  uint32_t future_use0;         /**< 32-bits for future use */
-  uint32_t future_use1;         /**< 32-bits for future use */
-  uint32_t future_use2;         /**< 32-bits for future use */
-  uint32_t checksum;            /**< CRC-32 checksum, see crc32() in utils folder */
+  uint32_t seq_number;  /**< Sequence number */
+  uint32_t ack_number;  /**< ACK number */
+  uint16_t control;     /**< Control bits (e.g. SYN, ACK, FIN) */
+  uint16_t window;      /**< Window size in bytes */
+  uint32_t data_len;    /**< Data length in bytes (EXCLUDING header) */
+  uint32_t future_use0; /**< 32-bits for future use */
+  uint32_t future_use1; /**< 32-bits for future use */
+  uint32_t future_use2; /**< 32-bits for future use */
+  uint32_t checksum;    /**< CRC-32 checksum, see crc32() in utils folder */
 } microtcp_header_t;
 
 typedef struct
 {
   microtcp_header_t header;
-  void* data;  
+  void *data;
 } microtcp_packet_t;
 
 /**
@@ -138,7 +136,7 @@ typedef struct
  * @return microtcp_sock_t 
  */
 microtcp_sock_t
-microtcp_socket (int domain, int type, int protocol);
+microtcp_socket(int domain, int type, int protocol);
 
 /**
  * @brief Binds a microtcp socket to a specific address.
@@ -148,9 +146,8 @@ microtcp_socket (int domain, int type, int protocol);
  * @param address_len 
  * @return int 0 on success, -1 on failure.
  */
-int
-microtcp_bind (microtcp_sock_t *socket, const struct sockaddr *address,
-               socklen_t address_len);
+int microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address,
+                  socklen_t address_len);
 
 /**
  * @brief Begins the connection among a server and a client.
@@ -161,9 +158,8 @@ microtcp_bind (microtcp_sock_t *socket, const struct sockaddr *address,
  * @param address_len 
  * @return int 0 on success, -1 on failure
  */
-int
-microtcp_connect (microtcp_sock_t *socket, const struct sockaddr *address,
-                  socklen_t address_len);
+int microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address,
+                     socklen_t address_len);
 
 /**
  * Blocks waiting for a new connection from a remote peer.
@@ -174,9 +170,8 @@ microtcp_connect (microtcp_sock_t *socket, const struct sockaddr *address,
  * @return ATTENTION despite the original accept() this function returns
  * 0 on success or -1 on failure
  */
-int
-microtcp_accept (microtcp_sock_t *socket, struct sockaddr *address,
-                 socklen_t address_len);
+int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address,
+                    socklen_t address_len);
 
 /**
  * @brief Ends the connection between a client and a host.
@@ -187,8 +182,7 @@ microtcp_accept (microtcp_sock_t *socket, struct sockaddr *address,
  * @param how 
  * @return int 0 on success, -1 on failure.
  */
-int
-microtcp_shutdown(microtcp_sock_t *socket, int how);
+int microtcp_shutdown(microtcp_sock_t *socket, int how);
 
 /**
  * @brief Sends the buffer to the address of socket.
@@ -206,8 +200,8 @@ microtcp_shutdown(microtcp_sock_t *socket, int how);
  * you should always check its value before procceding. Be careful using this one.
  */
 ssize_t
-microtcp_send (microtcp_sock_t *socket, const void *buffer, size_t length,
-               int flags);
+microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length,
+              int flags);
 
 /**
  * @brief Recieves the data sent from another host.
@@ -223,16 +217,18 @@ microtcp_send (microtcp_sock_t *socket, const void *buffer, size_t length,
  * thus you should always check this value. 
  */
 ssize_t
-microtcp_recv (microtcp_sock_t *socket, void *buffer, size_t length, int flags);
-
-
-ssize_t
-microtcp_raw_send (microtcp_sock_t *socket, const void *buffer, size_t length,
-               int flags);
+microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int flags);
 
 ssize_t
-microtcp_raw_recv (microtcp_sock_t *socket, void *buffer, size_t length,
-               int flags);
+microtcp_raw_send(microtcp_sock_t *socket, const void *buffer, size_t length,
+                  int flags);
 
+ssize_t
+microtcp_raw_recv(microtcp_sock_t *socket, void *buffer, size_t length,
+                  int flags);
+
+int DEBUG = 0;
+int DEBUG_DATA = 1;
+int DEBUG_TCP_FLOW = 1;
 
 #endif /* LIB_MICROTCP_H_ */

@@ -37,48 +37,83 @@
 
 #include "../lib/microtcp.h"
 #include "../utils/crc32.h"
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "../utils/crc32.h"
+#include <string.h>
 
-#define MANY_DATA 3000000
-
-#define MAXSIZE 100
+#define MANY_DATA 50000
 #define PORT 8080
 
-void generateBytes(size_t N, char *buff)
+void generate_bytes(size_t N, char *buff)
 {
     int i;
-    //buff = malloc(sizeof(char) * N);
     for (i = 0; i < N; i++)
     {
         buff[i] = 'c';
     }
 }
 
-int main(int argc, char **argv)
+void handshake()
 {
-    int len, n;
-
-    //char *str1 = "Client 1!";
-    char str1[MANY_DATA];
-    
-
-    char *str2 = "Client 2!";
-    char *str3 = "Client 3!";
-
-    char buffer[MAXSIZE];
-
-    generateBytes(MANY_DATA,str1);
-
     microtcp_sock_t socket;
     struct sockaddr_in servaddr;
 
     printf("Client running...\n");
 
-    //printf("%s -> %x\n",str1,crc32(str1,9));
+    socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
+    if (socket.state == INVALID)
+    {
+        perror("Microtcp socket\n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&servaddr, 0, sizeof(servaddr));
+
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(PORT);
+    servaddr.sin_addr.s_addr = INADDR_ANY;
+    //servaddr.sin_addr.s_addr = inet_addr("94.66.56.7"); // this is address of host which I want to send the socket
+
+    if ((microtcp_connect(&socket, (const struct sockaddr *)&servaddr, sizeof(servaddr))) < 0)
+    {
+        perror("Connect\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (socket.state == ESTABLISHED)
+    {
+        printf("Handshake succeed\n");
+    }
+
+    if (microtcp_shutdown(&socket, 0) < 0)
+    {
+        perror("Shut down\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (socket.state == CLOSED)
+    {
+        printf("Shutdown succeed\n");
+    }
+
+    exit(0);
+}
+
+void simple_data()
+{
+    int len, n;
+
+    char *str1 = "Client 1!";
+    char *str2 = "Client 2!";
+    char *str3 = "Client 3!";
+
+    microtcp_sock_t socket;
+    struct sockaddr_in servaddr;
+
+    printf("Client running...\n");
 
     socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
     if (socket.state == INVALID)
@@ -93,6 +128,75 @@ int main(int argc, char **argv)
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(PORT);
     servaddr.sin_addr.s_addr = INADDR_ANY;
+    //servaddr.sin_addr.s_addr = inet_addr("94.66.56.7"); // this is address of host which I want to send the socket
+
+    if ((microtcp_connect(&socket, (const struct sockaddr *)&servaddr, sizeof(servaddr))) < 0)
+    {
+        perror("Connect\n");
+        exit(EXIT_FAILURE);
+    }
+
+    n = microtcp_send(&socket, (const char *)str1, 10, 0);
+    if (n != 10)
+    {
+        perror("Could not send data\n");
+        exit(EXIT_FAILURE);
+    }
+
+    n = microtcp_send(&socket, (const char *)str2, 10, 0);
+    if (n != 10)
+    {
+        perror("Could not send data\n");
+        exit(EXIT_FAILURE);
+    }
+
+    n = microtcp_send(&socket, (const char *)str3, 10, 0);
+    if (n != 10)
+    {
+        perror("Could not send data\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Send message to server of %d bytes.\n", n);
+
+    if (microtcp_shutdown(&socket, 0) < 0)
+    {
+        perror("Shut down\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (socket.state == CLOSED)
+    {
+        printf("Shutdown succeed\n");
+    }
+
+    exit(0);
+}
+
+void many_data()
+{
+    int len, n;
+    char str1[MANY_DATA];
+
+    microtcp_sock_t socket;
+    struct sockaddr_in servaddr;
+
+    printf("Client running...\n");
+    generate_bytes(MANY_DATA, str1);
+
+    socket = microtcp_socket(AF_INET, SOCK_DGRAM, 0);
+    if (socket.state == INVALID)
+    {
+        perror("Microtcp socket\n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&servaddr, 0, sizeof(servaddr));
+
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(PORT);
+    servaddr.sin_addr.s_addr = INADDR_ANY;
+    //servaddr.sin_addr.s_addr = inet_addr("94.66.56.7"); // this is address of host which I want to send the socket
 
     if ((microtcp_connect(&socket, (const struct sockaddr *)&servaddr, sizeof(servaddr))) < 0)
     {
@@ -106,27 +210,9 @@ int main(int argc, char **argv)
         perror("Could not send data\n");
         exit(EXIT_FAILURE);
     }
-    printf("Send message to server of %d bytes.\n", n);
-   /* int x = 3;
-    int * ptr = &x;
-    //*ptr = 3;
-    n = microtcp_send(&socket, (const int *)ptr, 4, 0);
-    if (n != 4)
-    {
-        perror("Could not send data\n");
-        exit(EXIT_FAILURE);
-    }
-    printf("Send message to server of %d bytes.\n", n);
-
-    n = microtcp_send(&socket, (const char *)str3, 10, 0);
-    if (n != 10)
-    {
-        perror("Could not send data\n");
-        exit(EXIT_FAILURE);
-    }
 
     printf("Send message to server of %d bytes.\n", n);
-*/
+
     if (microtcp_shutdown(&socket, 0) < 0)
     {
         perror("Shut down\n");
@@ -138,5 +224,35 @@ int main(int argc, char **argv)
         printf("Shutdown succeed\n");
     }
 
-    return 0;
+    exit(0);
+}
+
+int main(int argc, char **argv)
+{
+    int opt;
+    int db = 1;
+
+    DEBUG = db;
+    DEBUG_DATA = db;
+    DEBUG_TCP_FLOW = 1;
+
+    while ((opt = getopt(argc, argv, "hsm")) != -1)
+    {
+        switch (opt)
+        {
+        case 'h':
+            handshake();
+            break;
+        case 's':
+            simple_data();
+            break;
+        case 'm':
+            many_data();
+            break;
+        default:
+            exit(EXIT_FAILURE);
+        }
+
+        return 0;
+    }
 }

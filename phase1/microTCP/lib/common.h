@@ -103,7 +103,26 @@ void initiliaze_default_header(microtcp_header_t *header, microtcp_sock_t socket
     header->control = set_control_bits(1, 0, 0, 0);
     header->checksum = 0;
     header->window = socket.curr_win_size;
-    //header->checksum   = crc32(header,sizeof(microtcp_header_t));
+}
+
+int skip_ack(){
+    /*int rand = get_random_int(0,10);
+    if(rand>=8){
+        return 0;
+    }
+    else{
+        return 1;
+    }*/
+    int ret;
+    static counter = 0;
+    if(counter<=3){
+        ret = 0;
+    }
+    else{
+        ret = 1;
+    }
+    counter++;
+    return ret;
 }
 
 /**
@@ -157,6 +176,11 @@ void convert_to_local_header(microtcp_header_t *header)
     header->window = ntohs(header->window);
 }
 
+int sleep_random_time(){
+    int seconds = get_random_int(0,MICROTCP_ACK_TIMEOUT_US);
+    return usleep(seconds);
+}
+
 /**
  * 
  * flag is to check seq num or not 
@@ -166,9 +190,7 @@ int validate_header(microtcp_header_t *header, int seq, int flag)
     long long int curr,old_checksum = (long long int)header->checksum;
     header->checksum = 0;
     curr = (long long int) crc32(header, sizeof(microtcp_header_t));
-    //printf("Old = %x curr = %x\n",old_checksum,crc32(header,sizeof(microtcp_header_t)));
     return (old_checksum == curr) && (flag || seq == header->ack_number - 1);
-    //return 1;
 }
 
 int validate_checksum(microtcp_header_t *header, void *packet, size_t length)

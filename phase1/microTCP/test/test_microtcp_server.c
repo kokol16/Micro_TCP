@@ -41,16 +41,21 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MAXSIZE 3000000
+#define MAXSIZE 50000
 #define PORT 8080
 
 int main(int argc, char **argv)
 {
-    int len, n,count;
+    int len, n, count;
     char buffer[MAXSIZE];
+    int db = 1;
 
     microtcp_sock_t socket;
     struct sockaddr_in servaddr, cliaddr;
+
+    DEBUG = db;
+    DEBUG_DATA = db;
+    DEBUG_TCP_FLOW = 1;
 
     printf("Server running...\n");
 
@@ -83,10 +88,10 @@ int main(int argc, char **argv)
 
     while ((n = microtcp_recv(&socket, (char *)buffer, MAXSIZE, MSG_WAITALL)) > 0)
     {
-        //printf("Message received: %s (%d bytes)\n",buffer,n);
-        //printf("Message received: %d (%d bytes)\n", *buffer, n);
         count += n;
-        printf("Data received: %d\n",n);
+        buffer[count] = '\0';
+        //printf("Data: %s\n", buffer);
+        printf("Data received: %d\n", n);
     }
 
     printf("Total data recieved: %d\n", count);
