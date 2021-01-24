@@ -114,7 +114,7 @@ int skip_ack(){
         return 1;
     }*/
     int ret;
-    static counter = 0;
+    /*static counter = 0;
     if(counter<=3){
         ret = 0;
     }
@@ -122,7 +122,15 @@ int skip_ack(){
         ret = 1;
     }
     counter++;
-    return ret;
+    return ret;*/
+
+    ret = get_random_int(0,5);
+    if(ret>=1){
+        return 0;
+    }
+    else{
+        return 1;
+    }
 }
 
 /**

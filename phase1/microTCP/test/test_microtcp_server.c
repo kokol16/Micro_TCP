@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
     DEBUG = db;
     DEBUG_DATA = db;
-    DEBUG_TCP_FLOW = 1;
+    DEBUG_TCP_FLOW = 0;
 
     printf("Server running...\n");
 
