@@ -44,7 +44,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MANY_DATA 50000
+#define MANY_DATA 500000
 #define PORT 8080
 
 void generate_bytes(size_t N, char *buff)

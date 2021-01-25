@@ -41,7 +41,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MAXSIZE 50000
+#define MAXSIZE 500000
 #define PORT 8080
 
 int main(int argc, char **argv)

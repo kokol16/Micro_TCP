@@ -644,6 +644,7 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
     if (isTimeout)
     {
       socket->packets_lost++;
+      /*This is not an accurate representation of the actual bytes lost*/
       socket->bytes_lost += bytes_to_sent - MICROTCP_MSS * i;
       socket->bytes_send += MICROTCP_MSS * i;
 
@@ -749,7 +750,6 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
     socket->packets_received++;
 
     data_size = bytes_recieved - sizeof(header);
-    socket->bytes_received += data_size;
     memcpy(&header, packet, sizeof(header));
     convert_to_local_header(&header);
 
@@ -804,6 +804,7 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
 
         /*Sending proper ACK*/
         data_size = header.data_len;
+        socket->bytes_received += data_size;
 
         /*Calculating the remaining buffer space*/
         if (socket->buf_fill_level + data_size < MICROTCP_RECVBUF_LEN)
@@ -819,7 +820,7 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
 
         /*Uncomment the following lines to enable buffer filling probability testing*/
         /*if ((get_random_int(0, 2)) >= 1)
-        rem_size = 0;*/
+          rem_size = 0;*/
 
         socket->seq_number = header.ack_number; /*As this case is right, this is equal to socket->seq_number++*/
         socket->ack_number = header.seq_number + data_size;
@@ -847,6 +848,9 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
 
       if (data_size == 0)
       {
+
+        socket->packets_received--;
+
         if (DEBUG_TCP_FLOW)
         {
           printf("Recieved empty payload packet\n.");
@@ -868,7 +872,7 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
 
       /*Uncomment the following to enable probality buffer testing*/
       /*if ((get_random_int(0, 2)) >= 1)
-      rem_size = 0;*/
+        rem_size = 0;*/
 
       ack_header.window = rem_size;
       ack_header.seq_number = socket->seq_number + 1;
@@ -909,7 +913,7 @@ void print_client_statistics(microtcp_sock_t socket)
   printf("Total packets send: %lu\n", socket.packets_send);
   printf("Total packets lost (and retransmitted): %lu\n", socket.packets_lost);
   printf("Total bytes send on TCP connection: %lu\n", socket.bytes_send);
-  printf("Total bytes lost on TCP connection: %lu\n", socket.bytes_lost);
+  //printf("Total bytes lost on TCP connection: %lu\n", socket.bytes_lost);
 }
 
 void print_server_statistics(microtcp_sock_t socket)

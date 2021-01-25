@@ -106,31 +106,16 @@ void initiliaze_default_header(microtcp_header_t *header, microtcp_sock_t socket
 }
 
 int skip_ack(){
-    /*int rand = get_random_int(0,10);
-    if(rand>=8){
-        return 0;
-    }
-    else{
-        return 1;
-    }*/
+    
     int ret;
-    /*static counter = 0;
-    if(counter<=3){
-        ret = 0;
-    }
-    else{
-        ret = 1;
-    }
-    counter++;
-    return ret;*/
-
-    ret = get_random_int(0,5);
+    ret = get_random_int(0,3);
     if(ret>=1){
         return 0;
     }
     else{
         return 1;
     }
+
 }
 
 /**

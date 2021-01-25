@@ -287,7 +287,7 @@ client_tcp (const char *serverip, uint16_t server_port, const char *file)
   /*Port that server listens at */
   sin.sin_port = htons (server_port);
   /* The server's IP*/
-  sin.sin_addr.s_addr =INADDR_ANY; //inet_addr (serverip);
+  sin.sin_addr.s_addr = inet_addr (serverip);
 
   if (connect (sock, (struct sockaddr *) &sin, sizeof(struct sockaddr_in))
       == -1) {
@@ -370,7 +370,7 @@ client_microtcp (const char *serverip, uint16_t server_port, const char *file)
   /*Port that server listens at */
   sin.sin_port = htons (server_port);
   /* The server's IP*/
-  sin.sin_addr.s_addr =INADDR_ANY; //inet_addr (serverip);
+  sin.sin_addr.s_addr = inet_addr (serverip);
 
   if (microtcp_connect (&sock, (struct sockaddr *) &sin, sizeof(struct sockaddr_in)) == -1) {
     perror ("TCP connect");
