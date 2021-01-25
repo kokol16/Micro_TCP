@@ -139,6 +139,7 @@ int microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, so
   /*If no error occured, connection is established*/
   socket->state = ESTABLISHED;
 
+  /*This is okay as header_2 is validated*/
   socket->ack_number = header_3.ack_number;
   socket->seq_number = header_3.seq_number + 1;
 
@@ -150,6 +151,11 @@ int microtcp_connect(microtcp_sock_t *socket, const struct sockaddr *address, so
 
   socket->recvbuf = malloc(sizeof(uint8_t) * MICROTCP_RECVBUF_LEN);
   socket->buf_fill_level = 0;
+
+  /*
+    NOTE: Every other field of the socket is set to 0
+    by memsetting the struct uppon its creation
+  */
 
   return 0;
 }
@@ -213,6 +219,7 @@ int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address, socklen_t
 
   socket->state = ESTABLISHED;
 
+  /*This is okay as header_3 is validated*/
   socket->seq_number = header_3.ack_number; /*At this point, this assignment is equal to: socket->seq_number++;*/
   socket->ack_number = header_3.seq_number + 1;
 
@@ -224,6 +231,11 @@ int microtcp_accept(microtcp_sock_t *socket, struct sockaddr *address, socklen_t
 
   socket->recvbuf = malloc(sizeof(uint8_t) * MICROTCP_RECVBUF_LEN);
   socket->buf_fill_level = 0;
+
+  /*
+    NOTE: Every other field of the socket is set to 0
+    by memsetting the struct uppon its creation
+  */
 
   return 0;
 }
@@ -272,15 +284,15 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
     socket->state = CLOSED;
     close(socket->sd);
   }
+  /*Client side*/
   else
-  { //client
-
+  {
     socket->ack_number += 1;
 
     memset(&header_1, 0, sizeof(header_1));
     header_1.ack_number = (socket->ack_number);
     header_1.seq_number = (socket->seq_number);
-    header_1.control = (set_control_bits(1, 0, 0, 1));
+    header_1.control = (set_control_bits(1, 0, 0, 1)); /*ACK FIN*/
     header_1.checksum = crc32(&header_1, sizeof(microtcp_header_t));
 
     convert_to_network_header(&header_1);
@@ -289,7 +301,7 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
 
     if (DEBUG)
     {
-      printf("Header 1 ???:\n");
+      printf("Header 1:\n");
       print_header(header_1);
     }
 
@@ -298,7 +310,7 @@ int microtcp_shutdown(microtcp_sock_t *socket, int how)
 
     if (DEBUG)
     {
-      printf("Header 2 ???:\n");
+      printf("Header 2:\n");
       print_header(header_2);
     }
 
@@ -350,11 +362,8 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
 {
   ssize_t bytes_sent, data_sent, recv, bytes_to_sent, total_bytes_sent = 0; /*bytes_sent is data+header*/
   size_t rem, chunk_size, remaining_bytes, total_length = length + sizeof(microtcp_header_t);
-
   int chunks, i, duplicate_counter = 0, ret_chunk = 0, ret_ack = 0, isTripleDuplicate = 0, isTimeout = 0;
-
   microtcp_header_t header, ack_header;
-
   void *packet;
   struct timeval timeout;
 
@@ -362,17 +371,27 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
     return -1;
 
   /*MSS does not contain the header size*/
+
+  /*
+    This is always capable of holding a complete packet
+    NOTE: We were instructed not to use many malloc functions,
+    so this is the optimal way to use the heap during a tcp flow.
+  */
   packet = malloc((MICROTCP_MSS + sizeof(microtcp_header_t)) * sizeof(char));
 
+  /*
+    Uncomment the next two lines if you want to simulate different TCP flow
+    for every separate call of microtcp_send.
+  */
   //socket->cwnd = MICROTCP_INIT_CWND;
   //socket->ssthresh = MICROTCP_INIT_SSTHRESH;
 
+  /*The flow starts here*/
   remaining_bytes = length;
   while (total_bytes_sent < length)
   {
-
-    bytes_to_sent = min(remaining_bytes, socket->curr_win_size, socket->cwnd);
-    chunks = bytes_to_sent / MICROTCP_MSS; /*how many segments*/
+    bytes_to_sent = min(remaining_bytes, socket->curr_win_size, socket->cwnd); /*Selecting the next data pie*/
+    chunks = bytes_to_sent / MICROTCP_MSS;                                     /*How many segments we are going to sent*/
 
     if (DEBUG_TCP_FLOW)
     {
@@ -390,10 +409,11 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
 
       sleep_random_time();
 
+      /*Special zero payload packet*/
       memset(&header, 0, sizeof(header));
       header.control = set_control_bits(1, 0, 0, 0);
-      header.seq_number = socket->seq_number + 1;
-      header.ack_number = socket->ack_number + 1;
+      header.seq_number = socket->seq_number;
+      header.ack_number = socket->ack_number;
       header.checksum = crc32(&header, sizeof(header));
 
       convert_to_network_header(&header);
@@ -403,7 +423,7 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
       recv = microtcp_raw_recv(socket, &ack_header, sizeof(ack_header), MSG_WAITALL);
       convert_to_local_header(&ack_header);
 
-      if (!validate_header(&ack_header, header.seq_number, 1))
+      if (!validate_header(&ack_header, header.seq_number, 1) || ack_header.seq_number != header.ack_number)
       {
         if (DEBUG_TCP_FLOW)
           printf("Corrupt non payload ack...\n");
@@ -565,9 +585,6 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
       }
     }
 
-    /*The last recieved header indicates the server's recieve buffer situation*/
-    socket->curr_win_size = ack_header.window;
-
     /*Actions of triple duplicate ACK.*/
     if (isTripleDuplicate || duplicate_counter > 0)
     {
@@ -634,6 +651,9 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
 
       continue; /*Retransmit*/
     }
+
+    /*The last recieved header indicates the server's recieve buffer situation*/
+    socket->curr_win_size = ack_header.window;
 
     /*Increment congestion window exponentially in slow start*/
     if (socket->cwnd <= socket->ssthresh)
@@ -704,12 +724,12 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
     skip = skip_ack();
 
     /*Comment the following line to enable probability retransmission testing*/
-    skip = 1;
+    //skip = 1;
 
-    /*if (skip == 1)
+    /*
+    if (skip == 1)
     {
-      sleep(1);
-      skip = 1;
+      continue;
     }
     else
     {
@@ -723,7 +743,6 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
       {
         socket->state = CLOSING_BY_PEER;
         socket->seq_number = header.ack_number; /*As this case is right, this is equal to socket->seq_number++*/
-                                                // socket->ack_number = header.seq_number+1; //ch
         socket->ack_number += 1;                /*This is okay because next packets contain only headers*/
 
         memset(&ack_header, 0, sizeof(header));
