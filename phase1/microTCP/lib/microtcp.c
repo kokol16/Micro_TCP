@@ -29,6 +29,7 @@
  * @copyright Copyright (c) 2020
  * 
  */
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,13 +37,6 @@
 #include "microtcp.h"
 #include "common.h"
 #include "../utils/crc32.h"
-
-/*
-1) flow window  = 0 -- den exw idea
-2) test retrans -- todo
-4) test bandwidth  -- its ok
-5) check ack/seq evaluations
-*/
 
 microtcp_sock_t microtcp_socket(int domain, int type, int protocol)
 {
@@ -80,6 +74,7 @@ int microtcp_bind(microtcp_sock_t *socket, const struct sockaddr *address, sockl
 
   /*If bind succeeds the server listens to the port given*/
   socket->state = LISTEN;
+
   return ret_val;
 }
 
@@ -705,12 +700,12 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
     data_size = bytes_recieved - sizeof(header);
     memcpy(&header, packet, sizeof(header));
     convert_to_local_header(&header);
-    
+
     skip = skip_ack();
-    
+
     /*Comment the following line to enable probability retransmission testing*/
     skip = 1;
-    
+
     /*if (skip == 1)
     {
       sleep(1);

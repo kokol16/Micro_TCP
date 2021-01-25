@@ -227,8 +227,8 @@ ssize_t
 microtcp_raw_recv(microtcp_sock_t *socket, void *buffer, size_t length,
                   int flags);
 
-int DEBUG = 1;
-int DEBUG_DATA = 1;
+int DEBUG = 0;
+int DEBUG_DATA = 0;
 int DEBUG_TCP_FLOW = 1;
 
 #endif /* LIB_MICROTCP_H_ */
