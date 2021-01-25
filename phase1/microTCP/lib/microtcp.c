@@ -417,13 +417,24 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
       header.checksum = crc32(&header, sizeof(header));
 
       convert_to_network_header(&header);
-      sendto(socket->sd, &header, sizeof(header), flags, socket->address, socket->address_len);
+      if (sendto(socket->sd, &header, sizeof(header), flags, socket->address, socket->address_len) < 0)
+      {
+        return -1;
+      }
+
       convert_to_local_header(&header);
+      timeout.tv_sec = 0;
+      timeout.tv_usec = MICROTCP_ACK_TIMEOUT_US;
+      if (setsockopt(socket->sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval)) < 0)
+      {
+        perror("setsockopt");
+        return -1;
+      }
 
       recv = microtcp_raw_recv(socket, &ack_header, sizeof(ack_header), MSG_WAITALL);
       convert_to_local_header(&ack_header);
 
-      if (!validate_header(&ack_header, header.seq_number, 1) || ack_header.seq_number != header.ack_number)
+      if (recv < 0 || !validate_header(&ack_header, header.seq_number, 1) || ack_header.seq_number != header.ack_number)
       {
         if (DEBUG_TCP_FLOW)
           printf("Corrupt non payload ack...\n");
@@ -463,8 +474,12 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
 
       convert_to_network_header(&header);
       memcpy(packet, &header, sizeof(header));
-      sendto(socket->sd, packet, MICROTCP_MSS + sizeof(header), flags, socket->address, socket->address_len);
+      if (sendto(socket->sd, packet, MICROTCP_MSS + sizeof(header), flags, socket->address, socket->address_len) < 0)
+      {
+        return -1;
+      }
       convert_to_local_header(&header);
+      socket->packets_send++;
 
       if (DEBUG_DATA)
       {
@@ -493,9 +508,12 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
       header.checksum = crc32(packet, MICROTCP_MSS + sizeof(header));
       convert_to_network_header(&header);
       memcpy(packet, &header, sizeof(header));
-      sendto(socket->sd, packet, rem + sizeof(header), flags, socket->address, socket->address_len);
+      if (sendto(socket->sd, packet, rem + sizeof(header), flags, socket->address, socket->address_len) < 0)
+      {
+        return -1;
+      }
       convert_to_local_header(&header);
-
+      socket->packets_send++;
       chunks++;
 
       if (DEBUG_DATA)
@@ -589,6 +607,8 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
     if (isTripleDuplicate || duplicate_counter > 0)
     {
 
+      socket->packets_lost++;
+
       /*Congestion control algorithm*/
       socket->ssthresh = socket->cwnd / 2;
       socket->cwnd = socket->cwnd / 2 + 1;
@@ -599,10 +619,13 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
       remaining_bytes -= MICROTCP_MSS * ret_chunk;
       total_bytes_sent += MICROTCP_MSS * ret_chunk;
 
+      socket->bytes_send += MICROTCP_MSS * ret_chunk;
+      socket->bytes_lost += bytes_to_sent - MICROTCP_MSS * ret_chunk;
+
       socket->seq_number += MICROTCP_MSS * ret_chunk;
       socket->ack_number += ret_chunk;
 
-      duplicate_counter = 0;
+      //duplicate_counter = 0;
       ret_ack = 0;
       ret_chunk = 0;
 
@@ -620,6 +643,10 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
     /*Actions upon timer expiration*/
     if (isTimeout)
     {
+      socket->packets_lost++;
+      socket->bytes_lost += bytes_to_sent - MICROTCP_MSS * i;
+      socket->bytes_send += MICROTCP_MSS * i;
+
       /*Congestion control algorithm*/
       socket->ssthresh = socket->cwnd / 2;
       socket->cwnd = min(MICROTCP_MSS, socket->ssthresh, socket->ssthresh + MICROTCP_MSS);
@@ -679,6 +706,8 @@ ssize_t microtcp_send(microtcp_sock_t *socket, const void *buffer, size_t length
     socket->seq_number += bytes_to_sent;
     socket->ack_number += chunks; /*This okay, as the transmission is succesful*/
 
+    socket->bytes_send += bytes_to_sent;
+
     duplicate_counter = 0;
     ret_ack = 0;
     ret_chunk = 0;
@@ -717,14 +746,17 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
       return -1;
     }
 
+    socket->packets_received++;
+
     data_size = bytes_recieved - sizeof(header);
+    socket->bytes_received += data_size;
     memcpy(&header, packet, sizeof(header));
     convert_to_local_header(&header);
 
     skip = skip_ack();
 
     /*Comment the following line to enable probability retransmission testing*/
-    //skip = 1;
+    skip = 1;
 
     /*
     if (skip == 1)
@@ -741,6 +773,7 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
       /*Connection finalization case, FIN-ACK packet*/
       if (get_bit(header.control, 0) && get_bit(header.control, 3))
       {
+        socket->packets_received--;
         socket->state = CLOSING_BY_PEER;
         socket->seq_number = header.ack_number; /*As this case is right, this is equal to socket->seq_number++*/
         socket->ack_number += 1;                /*This is okay because next packets contain only headers*/
@@ -825,6 +858,7 @@ ssize_t microtcp_recv(microtcp_sock_t *socket, void *buffer, size_t length, int 
     }
     else
     {
+
       /*Sending duplicate ACK*/
       memset(&ack_header, 0, sizeof(header));
 
@@ -867,4 +901,20 @@ ssize_t microtcp_raw_recv(microtcp_sock_t *socket, void *buffer, size_t length, 
 ssize_t microtcp_raw_send(microtcp_sock_t *socket, const void *buffer, size_t length, int flags)
 {
   return sendto(socket->sd, buffer, length, flags, (socket->address), socket->address_len);
+}
+
+void print_client_statistics(microtcp_sock_t socket)
+{
+  printf("Printing statistics for client:\n");
+  printf("Total packets send: %lu\n", socket.packets_send);
+  printf("Total packets lost (and retransmitted): %lu\n", socket.packets_lost);
+  printf("Total bytes send on TCP connection: %lu\n", socket.bytes_send);
+  printf("Total bytes lost on TCP connection: %lu\n", socket.bytes_lost);
+}
+
+void print_server_statistics(microtcp_sock_t socket)
+{
+  printf("Printing statistics for server:\n");
+  printf("Total packets recieved: %lu\n", socket.packets_received);
+  printf("Total bytes recieved on TCP connection: %lu\n", socket.bytes_received);
 }

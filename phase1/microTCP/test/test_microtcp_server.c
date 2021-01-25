@@ -107,5 +107,7 @@ int main(int argc, char **argv)
         printf("Shutdown succeed\n");
     }
 
+    print_server_statistics(socket);
+
     return 0;
 }

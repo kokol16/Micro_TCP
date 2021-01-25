@@ -227,6 +227,10 @@ ssize_t
 microtcp_raw_recv(microtcp_sock_t *socket, void *buffer, size_t length,
                   int flags);
 
+void print_server_statistics(microtcp_sock_t socket);
+
+void print_server_statistics(microtcp_sock_t socket);
+
 int DEBUG = 1;
 int DEBUG_DATA = 1;
 int DEBUG_TCP_FLOW = 1;

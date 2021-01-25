@@ -99,6 +99,7 @@ void handshake()
         printf("Shutdown succeed\n");
     }
 
+    print_client_statistics(socket);
     exit(0);
 }
 
@@ -170,6 +171,8 @@ void simple_data()
         printf("Shutdown succeed\n");
     }
 
+    print_client_statistics(socket);
+
     exit(0);
 }
 
@@ -224,6 +227,8 @@ void many_data()
         printf("Shutdown succeed\n");
     }
 
+    print_client_statistics(socket);
+
     exit(0);
 }
 
@@ -252,7 +257,6 @@ int main(int argc, char **argv)
         default:
             exit(EXIT_FAILURE);
         }
-
-        return 0;
     }
+    return 0;
 }
